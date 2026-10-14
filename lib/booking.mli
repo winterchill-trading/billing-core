@@ -1,5 +1,5 @@
 (** The ledger entries billing produces. Pure: each function builds a balanced
-    {!Ledger.Entry.t} and the caller appends it to its journal. Every entry has a
+    [Ledger.Entry.t] and the caller appends it to its journal. Every entry has a
     deterministic idempotency key, so booking the same event twice is a duplicate the
     journal recognises.
 

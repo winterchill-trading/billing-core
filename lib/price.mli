@@ -5,7 +5,7 @@
     - {!Tiered}: usage of a meter priced through tiers, billed in arrears, either
       graduated (each unit at the price of the tier it falls in) or volume (every unit at
       the price of the tier the total reaches).
-    - {!Percentage}: a {!Money.Fee} schedule (fixed part, basis points, minimum and
+    - {!Percentage}: a [Money.Fee] schedule (fixed part, basis points, minimum and
       maximum) over the money volume a meter records, billed in arrears, either on each
       event or on the period's total.
 
