@@ -9,3 +9,4 @@ module Usage_id = Usage_id
 module Period = Period
 module Interval = Interval
 module Unit_price = Unit_price
+module Price = Price
