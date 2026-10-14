@@ -12,3 +12,5 @@ module Period = Period
 module Interval = Interval
 module Unit_price = Unit_price
 module Price = Price
+module Plan = Plan
+module Price_list = Price_list
