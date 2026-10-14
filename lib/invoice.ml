@@ -27,6 +27,12 @@ module Tax_line = struct
     ; amount : Money.Amount.Stable.V1.t
     }
   [@@deriving bin_io, sexp, compare, equal]
+
+  module Stable = struct
+    module V1 = struct
+      type nonrec t = t [@@deriving bin_io, sexp, compare, equal]
+    end
+  end
 end
 
 module Payment = struct
@@ -94,39 +100,54 @@ type t = Repr.t =
 
 let sum currency amounts = Money.Amount.sum currency amounts |> Or_error.ok_exn
 
-(* Totals derive from the items alone, so [draft], [add_lines] and decoding share one
-   computation and cannot disagree. *)
-let totals ~currency ~(rounding : Rounding_rules.t) (items : Item.t list) =
-  let subtotal = sum currency (List.map items ~f:(fun item -> item.line.amount)) in
-  let rates =
-    (* Each rate once, in the order of its first use, so tax lines print in a stable
-       order. *)
-    List.fold
-      (List.concat_map items ~f:(fun item -> item.rates))
-      ~init:[]
-      ~f:(fun acc rate -> if List.mem acc rate ~equal:Tax.Rate.equal then acc else rate :: acc)
-    |> List.rev
-  in
-  let taxes =
-    List.map rates ~f:(fun rate ->
-      let lines =
-        List.filter_map items ~f:(fun item ->
-          Option.some_if (List.mem item.rates rate ~equal:Tax.Rate.equal) item.line.amount)
-      in
-      let taxable = sum currency lines in
-      let amount =
-        match rounding.tax_basis with
-        | Per_rate -> Money.Amount.mul_bps ~rounding:rounding.tax taxable ~bps:rate.bps
-        | Per_line ->
-          sum
-            currency
-            (List.map lines ~f:(fun line ->
-               Money.Amount.mul_bps ~rounding:rounding.tax line ~bps:rate.bps))
-      in
-      { Tax_line.rate; taxable; amount })
-  in
-  let tax_total = sum currency (List.map taxes ~f:(fun tax -> tax.amount)) in
-  subtotal, taxes, tax_total, Money.Amount.add_exn subtotal tax_total
+module Totals = struct
+  type t =
+    { subtotal : Money.Amount.t
+    ; taxes : Tax_line.t list
+    ; tax_total : Money.Amount.t
+    ; total : Money.Amount.t
+    }
+  [@@deriving sexp_of]
+
+  (* Totals derive from the items alone, so [draft], [add_lines] and decoding share one
+     computation and cannot disagree. *)
+  let compute ~currency ~(rounding : Rounding_rules.t) (items : Item.t list) =
+    let subtotal = sum currency (List.map items ~f:(fun item -> item.line.amount)) in
+    let rates =
+      (* Each rate once, in the order of its first use, so tax lines print in a stable
+         order. *)
+      List.fold
+        (List.concat_map items ~f:(fun item -> item.rates))
+        ~init:[]
+        ~f:(fun acc rate -> if List.mem acc rate ~equal:Tax.Rate.equal then acc else rate :: acc)
+      |> List.rev
+    in
+    let taxes =
+      List.map rates ~f:(fun rate ->
+        let lines =
+          List.filter_map items ~f:(fun item ->
+            Option.some_if (List.mem item.rates rate ~equal:Tax.Rate.equal) item.line.amount)
+        in
+        let taxable = sum currency lines in
+        let amount =
+          match rounding.tax_basis with
+          | Per_rate -> Money.Amount.mul_bps ~rounding:rounding.tax taxable ~bps:rate.bps
+          | Per_line ->
+            sum
+              currency
+              (List.map lines ~f:(fun line ->
+                 Money.Amount.mul_bps ~rounding:rounding.tax line ~bps:rate.bps))
+        in
+        { Tax_line.rate; taxable; amount })
+    in
+    let tax_total = sum currency (List.map taxes ~f:(fun tax -> tax.amount)) in
+    { subtotal; taxes; tax_total; total = Money.Amount.add_exn subtotal tax_total }
+  ;;
+end
+
+let totals ~currency ~rounding items =
+  let { Totals.subtotal; taxes; tax_total; total } = Totals.compute ~currency ~rounding items in
+  subtotal, taxes, tax_total, total
 ;;
 
 let items_of ~tax ~customer lines =

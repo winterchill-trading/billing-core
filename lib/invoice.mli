@@ -49,6 +49,12 @@ module Tax_line : sig
     ; amount : Money.Amount.t
     }
   [@@deriving sexp, compare, equal]
+
+  module Stable : sig
+    module V1 : sig
+      type nonrec t = t [@@deriving bin_io, sexp, compare, equal]
+    end
+  end
 end
 
 module Payment : sig
@@ -67,6 +73,22 @@ module Credit : sig
     ; amount : Money.Amount.t (** the credit note's total, tax included; positive *)
     }
   [@@deriving sexp, compare, equal]
+end
+
+(** The computed sums of a list of items. *)
+module Totals : sig
+  type t =
+    { subtotal : Money.Amount.t
+    ; taxes : Tax_line.t list (** one per rate, in order of first use *)
+    ; tax_total : Money.Amount.t
+    ; total : Money.Amount.t
+    }
+  [@@deriving sexp_of]
+
+  (** How an invoice sums its items: line amounts, then tax per rate or per line as the
+      rules say, then the total. Also used by {!Credit_note} so a credit note rounds
+      exactly like its invoice. Raises if an item is in another currency. *)
+  val compute : currency:Money.Currency.t -> rounding:Rounding_rules.t -> Item.t list -> t
 end
 
 type t = private
