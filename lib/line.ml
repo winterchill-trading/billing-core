@@ -69,6 +69,7 @@ let validate (r : Repr.t) =
 
 let t_of_sexp sexp = Repr.t_of_sexp sexp |> validate |> Or_error.ok_exn
 let currency t = Money.Amount.currency t.amount
+let with_amount t amount = validate { t with amount }
 
 module Stable = struct
   module V1 = struct

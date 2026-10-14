@@ -39,6 +39,9 @@ val create
 
 val currency : t -> Money.Currency.t
 
+(** The same line with another amount, validated again. *)
+val with_amount : t -> Money.Amount.t -> t Or_error.t
+
 module Stable : sig
   module V1 : sig
     (** Decoding validates like {!create}. *)
