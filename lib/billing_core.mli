@@ -14,3 +14,7 @@ module Unit_price = Unit_price
 module Price = Price
 module Plan = Plan
 module Price_list = Price_list
+module Line = Line
+module Tax = Tax
+module Rounding_rules = Rounding_rules
+module Numbering = Numbering
