@@ -97,6 +97,11 @@ val start
     themselves) restarts the current wait. Refuses any event once the state is final. *)
 val apply : Policy.t -> t -> Event.t -> (t * Action.t list, Refusal.t) Result.t
 
+(** The actions the current state stands for, for redoing them after a crash: always
+    [Mark_past_due], plus the policy's final actions once [Exhausted]. Notifications and
+    retries are not repeated. *)
+val standing_actions : Policy.t -> t -> Action.t list
+
 (** On or after the retry date, moves [Waiting] to [Collecting] and asks for a retry;
     otherwise changes nothing. *)
 val tick : t -> today:Date.t -> t * Action.t list

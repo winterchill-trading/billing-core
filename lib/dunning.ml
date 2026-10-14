@@ -142,6 +142,20 @@ let apply policy t (event : Event.t) =
       Ok (bump t, actions))
 ;;
 
+let standing_actions (policy : Policy.t) t =
+  Action.Mark_past_due
+  ::
+  (match t.state with
+   | Exhausted _ ->
+     List.concat
+       [ (if policy.mark_uncollectible then [ Action.Mark_uncollectible ] else [])
+       ; (if policy.cancel_subscription && Option.is_some t.subscription
+          then [ Action.Cancel_subscription ]
+          else [])
+       ]
+   | Waiting _ | Collecting _ | Recovered _ | Closed -> [])
+;;
+
 let tick t ~today =
   match t.state with
   | Waiting { retries_done; next_retry_on } when Date.( >= ) today next_retry_on ->
