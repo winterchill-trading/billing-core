@@ -12,7 +12,11 @@ let funding = Ledger.Account_id.of_string "external:sepa"
 
 let opened =
   let accounts =
-    Booking.Chart.accounts chart ~customers:[ customer ] ~codes:[ "platform" ] ~rates:[ vat ]
+    Booking.Chart.accounts
+      chart
+      ~customers:[ customer ]
+      ~codes:[ "platform" ]
+      ~rates:[ vat ]
     @ [ Ledger.Account.create ~purpose:Customer_funds wallet Liability
       ; Ledger.Account.create ~allow_negative:true funding Asset
       ]
@@ -77,10 +81,17 @@ let ok r = Result.ok r |> Option.value_exn
 
 let%expect_test "issue, part payment, credit note with refund" =
   let invoice = issued [ Recurring, "100.00" ] in
-  let b = Booking.apply opened [ some (Booking.issue chart invoice ~at) ] |> Or_error.ok_exn in
+  let b =
+    Booking.apply opened [ some (Booking.issue chart invoice ~at) ] |> Or_error.ok_exn
+  in
   show b;
   print_endline "-- pay 100.00";
-  let p = { Invoice.Payment.id = Payment_id.of_string "p1"; amount = amount "100.00"; paid_at = at } in
+  let p =
+    { Invoice.Payment.id = Payment_id.of_string "p1"
+    ; amount = amount "100.00"
+    ; paid_at = at
+    }
+  in
   let invoice, _ = Invoice.pay invoice p |> ok in
   let entry = Booking.payment chart invoice p.id ~from:wallet |> Or_error.ok_exn in
   let b = Booking.apply b [ entry ] |> Or_error.ok_exn in
@@ -125,22 +136,35 @@ let%expect_test "issue, part payment, credit note with refund" =
 
 let%expect_test "write-off, recovery and void" =
   let invoice = issued [ Recurring, "100.00"; Proration, "-20.00" ] in
-  let b = Booking.apply opened [ some (Booking.issue chart invoice ~at) ] |> Or_error.ok_exn in
+  let b =
+    Booking.apply opened [ some (Booking.issue chart invoice ~at) ] |> Or_error.ok_exn
+  in
   let lost = Invoice.mark_uncollectible invoice |> ok in
-  let b = Booking.apply b [ some (Booking.write_off chart lost ~at) ] |> Or_error.ok_exn in
+  let b =
+    Booking.apply b [ some (Booking.write_off chart lost ~at) ] |> Or_error.ok_exn
+  in
   show b;
   print_endline "-- late payment";
-  let p = { Invoice.Payment.id = Payment_id.of_string "late"; amount = amount "95.20"; paid_at = at } in
+  let p =
+    { Invoice.Payment.id = Payment_id.of_string "late"
+    ; amount = amount "95.20"
+    ; paid_at = at
+    }
+  in
   let recovered, _ = Invoice.pay lost p |> ok in
   let b =
-    Booking.apply b [ Booking.payment chart recovered p.id ~from:wallet |> Or_error.ok_exn ]
+    Booking.apply
+      b
+      [ Booking.payment chart recovered p.id ~from:wallet |> Or_error.ok_exn ]
     |> Or_error.ok_exn
   in
   print_s [%sexp (recovered.status : Invoice.Status.t)];
   show b;
   print_endline "-- void another invoice";
   let other = issued [ Recurring, "10.00" ] in
-  let b = Booking.apply opened [ some (Booking.issue chart other ~at) ] |> Or_error.ok_exn in
+  let b =
+    Booking.apply opened [ some (Booking.issue chart other ~at) ] |> Or_error.ok_exn
+  in
   let voided = Invoice.void other |> ok in
   let b = Booking.apply b [ some (Booking.void chart voided ~at) ] |> Or_error.ok_exn in
   show b;
@@ -175,51 +199,62 @@ let%test_unit "the receivable always equals the amount due" =
     let%map credit = Int.gen_incl 0 cents in
     cents, payments, credit
   in
-  Quickcheck.test gen ~sexp_of:[%sexp_of: int * int list * int] ~f:(fun (cents, payments, credit) ->
-    let net = Money.Amount.of_minor_units_int eur cents in
-    let invoice = issued [ Recurring, Money.Amount.to_decimal_string net ] in
-    let b = Booking.apply opened [ some (Booking.issue chart invoice ~at) ] |> Or_error.ok_exn in
-    let check b (invoice : Invoice.t) =
-      [%test_eq: Money.Amount.t]
-        (Ledger.Balances.balance b (chart.receivable customer) eur)
-        (Invoice.amount_due invoice)
-    in
-    let b, invoice =
-      List.foldi payments ~init:(b, invoice) ~f:(fun i (b, invoice) c ->
-        let p =
-          { Invoice.Payment.id = Payment_id.of_string (sprintf "p%d" i)
-          ; amount = Money.Amount.of_minor_units_int eur c
-          ; paid_at = at
-          }
-        in
-        match Invoice.pay invoice p with
-        | Error _ -> b, invoice
-        | Ok (after, _) ->
+  Quickcheck.test
+    gen
+    ~sexp_of:[%sexp_of: int * int list * int]
+    ~f:(fun (cents, payments, credit) ->
+      let net = Money.Amount.of_minor_units_int eur cents in
+      let invoice = issued [ Recurring, Money.Amount.to_decimal_string net ] in
+      let b =
+        Booking.apply opened [ some (Booking.issue chart invoice ~at) ] |> Or_error.ok_exn
+      in
+      let check b (invoice : Invoice.t) =
+        [%test_eq: Money.Amount.t]
+          (Ledger.Balances.balance b (chart.receivable customer) eur)
+          (Invoice.amount_due invoice)
+      in
+      let b, invoice =
+        List.foldi payments ~init:(b, invoice) ~f:(fun i (b, invoice) c ->
+          let p =
+            { Invoice.Payment.id = Payment_id.of_string (sprintf "p%d" i)
+            ; amount = Money.Amount.of_minor_units_int eur c
+            ; paid_at = at
+            }
+          in
+          match Invoice.pay invoice p with
+          | Error _ -> b, invoice
+          | Ok (after, _) ->
+            let b =
+              (* Collected by bank transfer, so the payer's balance is not ours to check. *)
+              Booking.apply
+                b
+                [ Booking.payment chart after p.id ~from:funding |> Or_error.ok_exn ]
+              |> Or_error.ok_exn
+            in
+            check b after;
+            b, after)
+      in
+      if credit > 0
+      then (
+        match
+          Credit_note.create
+            ~id:(Credit_note_id.of_string "cn")
+            ~number:"CN-1"
+            ~issued_on:(Date.of_string "2026-03-02")
+            ~reason:Order_change
+            invoice
+            [ 0, Money.Amount.of_minor_units_int eur credit ]
+        with
+        | Error _ -> ()
+        | Ok note ->
+          let after, _ =
+            Invoice.credit invoice ~credit_note:note.id ~amount:note.total |> ok
+          in
           let b =
-            (* Collected by bank transfer, so the payer's balance is not ours to check. *)
-            Booking.apply b [ Booking.payment chart after p.id ~from:funding |> Or_error.ok_exn ]
+            Booking.apply
+              b
+              [ some (Booking.credit_note chart invoice note ~refund_to:wallet ~at) ]
             |> Or_error.ok_exn
           in
-          check b after;
-          b, after)
-    in
-    if credit > 0
-    then (
-      match
-        Credit_note.create
-          ~id:(Credit_note_id.of_string "cn")
-          ~number:"CN-1"
-          ~issued_on:(Date.of_string "2026-03-02")
-          ~reason:Order_change
-          invoice
-          [ 0, Money.Amount.of_minor_units_int eur credit ]
-      with
-      | Error _ -> ()
-      | Ok note ->
-        let after, _ = Invoice.credit invoice ~credit_note:note.id ~amount:note.total |> ok in
-        let b =
-          Booking.apply b [ some (Booking.credit_note chart invoice note ~refund_to:wallet ~at) ]
-          |> Or_error.ok_exn
-        in
-        check b after))
+          check b after))
 ;;

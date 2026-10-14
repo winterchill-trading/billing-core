@@ -8,7 +8,13 @@ let subscription = Subscription_id.of_string "sub-1"
 let%expect_test "retries, then exhaustion with the policy's final actions" =
   let policy = Dunning.Policy.default in
   let t, actions =
-    Dunning.start policy ~invoice ~subscription ~on:(d "2026-03-01") ~reason:"insufficient_funds" ()
+    Dunning.start
+      policy
+      ~invoice
+      ~subscription
+      ~on:(d "2026-03-01")
+      ~reason:"insufficient_funds"
+      ()
   in
   let step (t, actions) =
     print_s [%sexp (t.Dunning.state : Dunning.State.t), (actions : Dunning.Action.t list)];
@@ -90,7 +96,9 @@ let%test_unit "dunning terminates within the policy's retries" =
                  | _ -> false);
             t
           | `Fail ->
-            (match Dunning.apply policy t (Payment_failed { on = !today; reason = "x" }) with
+            (match
+               Dunning.apply policy t (Payment_failed { on = !today; reason = "x" })
+             with
              | Ok (t, actions) ->
                (* No subscription was given, so cancelling is never asked for. *)
                assert (

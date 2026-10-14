@@ -6,7 +6,11 @@ module Billing = Engine.Make (Monad.Ident) (Store)
 let eur = Money.Currency.eur
 let amount s = Money.Amount.of_string (s ^ " EUR")
 let d = Date.of_string
-let noon date = Time_ns.of_date_ofday ~zone:Time_float.Zone.utc date (Time_ns.Ofday.of_string "12:00")
+
+let noon date =
+  Time_ns.of_date_ofday ~zone:Time_float.Zone.utc date (Time_ns.Ofday.of_string "12:00")
+;;
+
 let vat = Tax.Rate.create ~name:"vat-standard" ~bps:2000 |> Or_error.ok_exn
 let calls = Meter.of_string "api_calls"
 let customer = Customer_id.of_string "acme"
@@ -30,7 +34,9 @@ let plan id price =
         (Price.tiered
            calls
            Graduated
-           [ Price.Tier.create ~up_to:1000 (Unit_price.of_string eur "0" |> Or_error.ok_exn)
+           [ Price.Tier.create
+               ~up_to:1000
+               (Unit_price.of_string eur "0" |> Or_error.ok_exn)
              |> Or_error.ok_exn
            ; Price.Tier.create (Unit_price.of_string eur "0.01" |> Or_error.ok_exn)
              |> Or_error.ok_exn
@@ -54,7 +60,11 @@ let show_invoice (i : Invoice.t) =
     (Money.Amount.to_string i.total)
     (Money.Amount.to_string (Invoice.amount_due i));
   List.iter i.items ~f:(fun item ->
-    printf "  %-38s %4d  %s\n" item.line.description item.line.quantity (Money.Amount.to_string item.line.amount))
+    printf
+      "  %-38s %4d  %s\n"
+      item.line.description
+      item.line.quantity
+      (Money.Amount.to_string item.line.amount))
 ;;
 
 let show_outcome (o : Engine.Outcome.t) =
@@ -95,31 +105,67 @@ let subscribed () =
       ()
     |> Or_error.ok_exn
   in
-  let sub, outcome = Billing.subscribe store config sub ~today:(d "2026-01-15") ~now:(noon (d "2026-01-15")) |> ok in
+  let sub, outcome =
+    Billing.subscribe
+      store
+      config
+      sub
+      ~today:(d "2026-01-15")
+      ~now:(noon (d "2026-01-15"))
+    |> ok
+  in
   store, sub, outcome
 ;;
 
 let%expect_test "a subscription's first months" =
   let store, _, outcome = subscribed () in
   show_outcome outcome;
-  print_s [%sexp (usage store "u1" ~on:(d "2026-01-20") 800 : (Usage.Outcome.t, Refusal.t) Result.t)];
-  print_s [%sexp (usage store "u1" ~on:(d "2026-01-20") 800 : (Usage.Outcome.t, Refusal.t) Result.t)];
-  print_s [%sexp (usage store "u2" ~on:(d "2026-02-10") 700 : (Usage.Outcome.t, Refusal.t) Result.t)];
+  print_s
+    [%sexp
+      (usage store "u1" ~on:(d "2026-01-20") 800 : (Usage.Outcome.t, Refusal.t) Result.t)];
+  print_s
+    [%sexp
+      (usage store "u1" ~on:(d "2026-01-20") 800 : (Usage.Outcome.t, Refusal.t) Result.t)];
+  print_s
+    [%sexp
+      (usage store "u2" ~on:(d "2026-02-10") 700 : (Usage.Outcome.t, Refusal.t) Result.t)];
   print_endline "-- nothing is due before the period ends";
-  let _, early = Billing.bill store config (Subscription_id.of_string "sub-acme") ~today:(d "2026-02-14") ~now:(noon (d "2026-02-14")) |> ok in
+  let _, early =
+    Billing.bill
+      store
+      config
+      (Subscription_id.of_string "sub-acme")
+      ~today:(d "2026-02-14")
+      ~now:(noon (d "2026-02-14"))
+    |> ok
+  in
   show_outcome early;
   print_endline "-- upgrade from the next period, then close";
   let (_ : Subscription.t * Line.t list) =
-    Billing.change_plan store config (Subscription_id.of_string "sub-acme") growth ~effective:`Next_period |> ok
+    Billing.change_plan
+      store
+      config
+      (Subscription_id.of_string "sub-acme")
+      growth
+      ~effective:`Next_period
+    |> ok
   in
-  let results = Billing.run store config ~today:(d "2026-02-15") ~now:(noon (d "2026-02-15")) in
+  let results =
+    Billing.run store config ~today:(d "2026-02-15") ~now:(noon (d "2026-02-15"))
+  in
   List.iter results ~f:(fun (_, r) -> show_outcome (snd (ok r)));
   print_endline "-- late usage is refused";
-  print_s [%sexp (usage store "u3" ~on:(d "2026-02-14") 5 |> Result.map_error ~f:Refusal.code : (Usage.Outcome.t, string) Result.t)];
+  print_s
+    [%sexp
+      (usage store "u3" ~on:(d "2026-02-14") 5 |> Result.map_error ~f:Refusal.code
+       : (Usage.Outcome.t, string) Result.t)];
   print_endline "-- running again changes nothing";
-  let again = Billing.run store config ~today:(d "2026-02-15") ~now:(noon (d "2026-02-15")) in
+  let again =
+    Billing.run store config ~today:(d "2026-02-15") ~now:(noon (d "2026-02-15"))
+  in
   List.iter again ~f:(fun (_, r) -> show_outcome (snd (ok r)));
-  [%expect {|
+  [%expect
+    {|
     INV-2026-000001 open 2026-01-15..2026-02-14 total 60.00 EUR due 60.00 EUR
       starter plan                              1  50.00 EUR
       entry billing:invoice:sub-acme@2026-01-15:issue
@@ -143,22 +189,35 @@ let%expect_test "failed payments go through dunning to cancellation and write-of
   let invoice = (List.hd_exn outcome.invoices).id in
   let fail on =
     let dunning, outcome =
-      Billing.payment_failed store config invoice ~on:(d on) ~reason:"insufficient_funds" ~now:(noon (d on)) |> ok
+      Billing.payment_failed
+        store
+        config
+        invoice
+        ~on:(d on)
+        ~reason:"insufficient_funds"
+        ~now:(noon (d on))
+      |> ok
     in
     print_s [%sexp (dunning.state : Dunning.State.t)];
     show_outcome outcome
   in
   fail "2026-01-16";
   let status () =
-    let sub = Store.find_subscription store (Subscription_id.of_string "sub-acme") |> Option.value_exn in
+    let sub =
+      Store.find_subscription store (Subscription_id.of_string "sub-acme")
+      |> Option.value_exn
+    in
     print_s [%sexp (sub.status : Subscription.Status.t)]
   in
   status ();
   List.iter [ "2026-01-19"; "2026-01-24"; "2026-01-31" ] ~f:(fun day ->
-    print_s [%sexp (Billing.dunning_due store config ~today:(d day) : (Invoice_id.t * int) list)];
+    print_s
+      [%sexp
+        (Billing.dunning_due store config ~today:(d day) : (Invoice_id.t * int) list)];
     fail day);
   status ();
-  [%expect {|
+  [%expect
+    {|
     (Waiting (retries_done 0) (next_retry_on 2026-01-19))
     Mark_past_due
     (Notify_customer (failures 1) (next_retry_on (2026-01-19)))
@@ -185,14 +244,24 @@ let%expect_test "a payment ends dunning; a credit note and an immediate cancella
   let store, _, outcome = subscribed () in
   let invoice = (List.hd_exn outcome.invoices).id in
   let (_ : Dunning.t * Engine.Outcome.t) =
-    Billing.payment_failed store config invoice ~on:(d "2026-01-16") ~reason:"x" ~now:(noon (d "2026-01-16")) |> ok
+    Billing.payment_failed
+      store
+      config
+      invoice
+      ~on:(d "2026-01-16")
+      ~reason:"x"
+      ~now:(noon (d "2026-01-16"))
+    |> ok
   in
   let paid, receipt, outcome =
     Billing.pay
       store
       config
       invoice
-      { id = Payment_id.of_string "pay-1"; amount = amount "60.00"; paid_at = noon (d "2026-01-18") }
+      { id = Payment_id.of_string "pay-1"
+      ; amount = amount "60.00"
+      ; paid_at = noon (d "2026-01-18")
+      }
       ~from:wallet
     |> ok
   in
@@ -200,19 +269,35 @@ let%expect_test "a payment ends dunning; a credit note and an immediate cancella
   print_endline (Receipt.to_text receipt);
   print_s
     [%sexp
-      (Store.find_dunning store paid.id |> Option.map ~f:(fun d -> d.Dunning.state) : Dunning.State.t option)
-    , ((Store.find_subscription store (Subscription_id.of_string "sub-acme") |> Option.value_exn).status
-       : Subscription.Status.t)];
-  print_endline "-- usage, then cancel on 2026-01-31: final usage invoice and credit for 15 of 31 days";
-  ignore (usage store "u1" ~on:(d "2026-01-20") 1500 : (Usage.Outcome.t, Refusal.t) Result.t);
+      (Store.find_dunning store paid.id |> Option.map ~f:(fun d -> d.Dunning.state)
+       : Dunning.State.t option)
+      , ((Store.find_subscription store (Subscription_id.of_string "sub-acme")
+          |> Option.value_exn)
+           .status
+         : Subscription.Status.t)];
+  print_endline
+    "-- usage, then cancel on 2026-01-31: final usage invoice and credit for 15 of 31 \
+     days";
+  ignore
+    (usage store "u1" ~on:(d "2026-01-20") 1500 : (Usage.Outcome.t, Refusal.t) Result.t);
   let sub, outcome =
-    Billing.cancel store config (Subscription_id.of_string "sub-acme") ~at:(`Immediately (d "2026-01-31")) ~refund_to:wallet ~now:(noon (d "2026-01-31"))
+    Billing.cancel
+      store
+      config
+      (Subscription_id.of_string "sub-acme")
+      ~at:(`Immediately (d "2026-01-31"))
+      ~refund_to:wallet
+      ~now:(noon (d "2026-01-31"))
     |> ok
   in
   show_outcome outcome;
   print_s [%sexp (sub.status : Subscription.Status.t), (sub.ended_on : Date.t option)];
-  print_s [%sexp (usage store "u9" ~on:(d "2026-02-01") 1 |> Result.map_error ~f:Refusal.code : (Usage.Outcome.t, string) Result.t)];
-  [%expect {|
+  print_s
+    [%sexp
+      (usage store "u9" ~on:(d "2026-02-01") 1 |> Result.map_error ~f:Refusal.code
+       : (Usage.Outcome.t, string) Result.t)];
+  [%expect
+    {|
     INV-2026-000001 paid 2026-01-15..2026-02-14 total 60.00 EUR due 0.00 EUR
       starter plan                              1  50.00 EUR
       entry billing:invoice:sub-acme@2026-01-15:payment:pay-1

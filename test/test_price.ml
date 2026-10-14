@@ -31,7 +31,9 @@ let%expect_test "graduated and volume tiers" =
 ;;
 
 let%expect_test "invalid tier lists" =
-  let show tiers = print_s [%sexp (Price.tiered meter Graduated tiers : Price.t Or_error.t)] in
+  let show tiers =
+    print_s [%sexp (Price.tiered meter Graduated tiers : Price.t Or_error.t)]
+  in
   show [];
   show [ Price.Tier.create ~up_to:10 (up "1") |> Or_error.ok_exn ];
   show
@@ -55,15 +57,27 @@ let%expect_test "invalid tier lists" =
 
 let%expect_test "percentage fees per event and per period" =
   let fee =
-    Money.Fee.create ~bps_q:(Q.of_string "25") ~min:(amount "0.10") ~max:(amount "50.00") eur
+    Money.Fee.create
+      ~bps_q:(Q.of_string "25")
+      ~min:(amount "0.10")
+      ~max:(amount "50.00")
+      eur
     |> Or_error.ok_exn
   in
   let volumes = [ amount "10.00"; amount "1000.00"; amount "30000.00" ] in
   List.iter Price.Fee_basis.all ~f:(fun basis ->
     let price = Price.percentage ~basis (Meter.of_string "card_volume") fee in
-    let charged = Price.usage price ~units:0 ~volumes ~rounding:Half_up |> Or_error.ok_exn in
-    let nothing = Price.usage price ~units:0 ~volumes:[] ~rounding:Half_up |> Or_error.ok_exn in
-    print_s [%sexp (basis : Price.Fee_basis.t), (charged : Money.Amount.t), (nothing : Money.Amount.t)]);
+    let charged =
+      Price.usage price ~units:0 ~volumes ~rounding:Half_up |> Or_error.ok_exn
+    in
+    let nothing =
+      Price.usage price ~units:0 ~volumes:[] ~rounding:Half_up |> Or_error.ok_exn
+    in
+    print_s
+      [%sexp
+        (basis : Price.Fee_basis.t)
+        , (charged : Money.Amount.t)
+        , (nothing : Money.Amount.t)]);
   [%expect
     {|
     (Per_event "52.60 EUR" "0.00 EUR")
@@ -75,8 +89,7 @@ let%expect_test "per seat above the included seats" =
   let price = Price.per_seat ~included:3 (amount "12.00") |> Or_error.ok_exn in
   List.iter [ 0; 3; 4; 10 ] ~f:(fun seats ->
     print_endline (Money.Amount.to_string (Price.recurring price ~seats)));
-  [%expect
-    {|
+  [%expect {|
     0.00 EUR
     0.00 EUR
     12.00 EUR

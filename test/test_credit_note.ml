@@ -12,7 +12,8 @@ let tax =
 ;;
 
 let line code s =
-  Line.create ~code ~description:code ~kind:One_off ~quantity:1 (amount s) |> Or_error.ok_exn
+  Line.create ~code ~description:code ~kind:One_off ~quantity:1 (amount s)
+  |> Or_error.ok_exn
 ;;
 
 let issued () =
@@ -79,7 +80,9 @@ let%expect_test "a partial credit on a part-paid invoice reduces the amount due"
     |}]
 ;;
 
-let%expect_test "a full credit on a paid invoice is all refund; nothing more can be credited" =
+let%expect_test "a full credit on a paid invoice is all refund; nothing more can be \
+                 credited"
+  =
   let invoice = pay (issued ()) "p1" "129.70" in
   let cn =
     Credit_note.full
@@ -92,7 +95,9 @@ let%expect_test "a full credit on a paid invoice is all refund; nothing more can
   show cn;
   let cn = Result.ok cn |> Option.value_exn in
   let invoice, _ =
-    Invoice.credit invoice ~credit_note:cn.id ~amount:cn.total |> Result.ok |> Option.value_exn
+    Invoice.credit invoice ~credit_note:cn.id ~amount:cn.total
+    |> Result.ok
+    |> Option.value_exn
   in
   print_s [%sexp (Invoice.overpaid invoice : Money.Amount.t)];
   show (note ~id:"cn-2" invoice [ 1, amount "0.01" ]);

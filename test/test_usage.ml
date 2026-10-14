@@ -25,8 +25,8 @@ let%expect_test "duplicates and conflicts" =
   print_s
     [%sexp
       (o1 : Usage.Outcome.t)
-    , (o2 : Usage.Outcome.t)
-    , (Result.map conflict ~f:snd : (Usage.Outcome.t, Refusal.t) Result.t)];
+      , (o2 : Usage.Outcome.t)
+      , (Result.map conflict ~f:snd : (Usage.Outcome.t, Refusal.t) Result.t)];
   print_s
     [%sexp
       (Usage.Record.create
@@ -53,10 +53,14 @@ let%expect_test "summaries by meter and period" =
     ]
   in
   let march =
-    Period.create_exn ~start:(Date.of_string "2026-03-01") ~stop:(Date.of_string "2026-04-01")
+    Period.create_exn
+      ~start:(Date.of_string "2026-03-01")
+      ~stop:(Date.of_string "2026-04-01")
   in
-  print_s [%sexp (Usage.Summary.of_records records ~meter:calls ~zone march : Usage.Summary.t)];
-  print_s [%sexp (Usage.Summary.of_records records ~meter:volume ~zone march : Usage.Summary.t)];
+  print_s
+    [%sexp (Usage.Summary.of_records records ~meter:calls ~zone march : Usage.Summary.t)];
+  print_s
+    [%sexp (Usage.Summary.of_records records ~meter:volume ~zone march : Usage.Summary.t)];
   [%expect
     {|
     ((units 15) (volumes ()) (records 2))
@@ -72,7 +76,9 @@ let%test_unit "ingesting with resends in any order gives the same log" =
       List.init n ~f:(fun i -> record (sprintf "u%d" i) ~minutes:(i * 7) (Units (i + 1)))
     in
     let%bind resends = List.gen_with_length (2 * n) (Int.gen_incl 0 (n - 1)) in
-    let%map order = List.gen_permutations (records @ List.map resends ~f:(List.nth_exn records)) in
+    let%map order =
+      List.gen_permutations (records @ List.map resends ~f:(List.nth_exn records))
+    in
     records, order
   in
   Quickcheck.test

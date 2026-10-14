@@ -35,8 +35,7 @@ let show_totals (t : Invoice.t) =
 
 let%expect_test "tax rounds once per rate or on every line" =
   show_totals (draft lines);
-  show_totals
-    (draft ~rounding:{ Rounding_rules.default with tax_basis = Per_line } lines);
+  show_totals (draft ~rounding:{ Rounding_rules.default with tax_basis = Per_line } lines);
   [%expect
     {|
     ((subtotal "0.15 EUR")
@@ -99,12 +98,15 @@ let show_result r =
     print_s
       [%sexp
         (outcome : [ `Applied | `Duplicate ])
-      , (t.status : Invoice.Status.t)
-      , (amount_due : Money.Amount.t)]
-  | Error refusal -> print_s [%sexp (Refusal.code refusal : string), (refusal : Refusal.t)]
+        , (t.status : Invoice.Status.t)
+        , (amount_due : Money.Amount.t)]
+  | Error refusal ->
+    print_s [%sexp (Refusal.code refusal : string), (refusal : Refusal.t)]
 ;;
 
-let payment id s = { Invoice.Payment.id = Payment_id.of_string id; amount = amount s; paid_at = at }
+let payment id s =
+  { Invoice.Payment.id = Payment_id.of_string id; amount = amount s; paid_at = at }
+;;
 
 let%expect_test "payments: partial, duplicate, conflict, overpayment, settled" =
   let t = open_invoice () in
@@ -118,7 +120,9 @@ let%expect_test "payments: partial, duplicate, conflict, overpayment, settled" =
   show_result (Invoice.pay t1 (payment "p2" "69.00"));
   let t2, _ = Invoice.pay t1 (payment "p2" "69.00") |> Result.ok |> Option.value_exn in
   show_result (Invoice.pay t2 (payment "p3" "1.00"));
-  print_s [%sexp (Invoice.void t2 |> Result.map_error ~f:Refusal.code : (Invoice.t, string) Result.t)];
+  print_s
+    [%sexp
+      (Invoice.void t2 |> Result.map_error ~f:Refusal.code : (Invoice.t, string) Result.t)];
   [%expect
     {|
     (Open "119.00 EUR")
@@ -173,7 +177,10 @@ let%expect_test "drafts: negative totals cannot be issued, zero totals are paid 
   in
   let credit = line ~kind:Proration "unused" "-30.00" in
   print_s [%sexp (issue (draft [ credit ]) : (Invoice.Status.t, string) Result.t)];
-  print_s [%sexp (issue (draft [ credit; line "plan" "30.00" ]) : (Invoice.Status.t, string) Result.t)];
+  print_s
+    [%sexp
+      (issue (draft [ credit; line "plan" "30.00" ])
+       : (Invoice.Status.t, string) Result.t)];
   print_s
     [%sexp
       (Line.create ~code:"x" ~description:"x" ~kind:Recurring ~quantity:1 (amount "-1.00")
@@ -194,50 +201,56 @@ let%test_unit "totals identity and amount due over random payments" =
     let%map payments = List.gen_with_length 6 (Int.gen_incl 1 40_000) in
     lines, payments
   in
-  Quickcheck.test gen ~sexp_of:[%sexp_of: int list * int list] ~f:(fun (cents, payments) ->
-    let lines =
-      List.mapi cents ~f:(fun i c ->
-        Line.create
-          ~code:(sprintf "l%d" i)
-          ~description:"line"
-          ~kind:Proration
-          ~quantity:1
-          (Money.Amount.of_minor_units_int eur c)
-        |> Or_error.ok_exn)
-    in
-    let t = draft ~tax:mixed_tax lines in
-    [%test_eq: Money.Amount.t]
-      t.total
-      (Money.Amount.add_exn t.subtotal t.tax_total);
-    match
-      Invoice.finalize
-        t
-        ~number:"N-1"
-        ~issued_on:(Date.of_string "2026-01-01")
-        ~due_on:(Date.of_string "2026-01-10")
-    with
-    | Error _ -> assert (Money.Amount.is_negative t.total)
-    | Ok t ->
-      let final =
-        List.foldi payments ~init:t ~f:(fun i t c ->
-          match
-            Invoice.pay t (payment (sprintf "p%d" i) (Money.Amount.to_decimal_string (Money.Amount.of_minor_units_int eur c)))
-          with
-          | Ok (t, _) -> t
-          | Error _ -> t)
+  Quickcheck.test
+    gen
+    ~sexp_of:[%sexp_of: int list * int list]
+    ~f:(fun (cents, payments) ->
+      let lines =
+        List.mapi cents ~f:(fun i c ->
+          Line.create
+            ~code:(sprintf "l%d" i)
+            ~description:"line"
+            ~kind:Proration
+            ~quantity:1
+            (Money.Amount.of_minor_units_int eur c)
+          |> Or_error.ok_exn)
       in
-      [%test_eq: Money.Amount.t]
-        (Money.Amount.add_exn (Invoice.amount_paid final) (Invoice.amount_due final))
-        final.total;
-      [%test_eq: bool]
-        (Invoice.Status.equal final.status Paid)
-        (Money.Amount.is_zero (Invoice.amount_due final));
-      let round_trip =
-        Bin_prot.Reader.of_string
-          Invoice.Stable.V1.bin_reader_t
-          (Bin_prot.Writer.to_string Invoice.Stable.V1.bin_writer_t final)
-      in
-      [%test_eq: Invoice.t] round_trip final)
+      let t = draft ~tax:mixed_tax lines in
+      [%test_eq: Money.Amount.t] t.total (Money.Amount.add_exn t.subtotal t.tax_total);
+      match
+        Invoice.finalize
+          t
+          ~number:"N-1"
+          ~issued_on:(Date.of_string "2026-01-01")
+          ~due_on:(Date.of_string "2026-01-10")
+      with
+      | Error _ -> assert (Money.Amount.is_negative t.total)
+      | Ok t ->
+        let final =
+          List.foldi payments ~init:t ~f:(fun i t c ->
+            match
+              Invoice.pay
+                t
+                (payment
+                   (sprintf "p%d" i)
+                   (Money.Amount.to_decimal_string
+                      (Money.Amount.of_minor_units_int eur c)))
+            with
+            | Ok (t, _) -> t
+            | Error _ -> t)
+        in
+        [%test_eq: Money.Amount.t]
+          (Money.Amount.add_exn (Invoice.amount_paid final) (Invoice.amount_due final))
+          final.total;
+        [%test_eq: bool]
+          (Invoice.Status.equal final.status Paid)
+          (Money.Amount.is_zero (Invoice.amount_due final));
+        let round_trip =
+          Bin_prot.Reader.of_string
+            Invoice.Stable.V1.bin_reader_t
+            (Bin_prot.Writer.to_string Invoice.Stable.V1.bin_writer_t final)
+        in
+        [%test_eq: Invoice.t] round_trip final)
 ;;
 
 let%expect_test "stable digest" =

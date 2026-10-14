@@ -45,7 +45,11 @@ let date_gen =
 
 let%test_unit "periods tile the calendar and index_of finds them" =
   Quickcheck.test
-    (Quickcheck.Generator.tuple4 interval_gen date_gen (Int.gen_incl 0 60) (Int.gen_incl 0 400))
+    (Quickcheck.Generator.tuple4
+       interval_gen
+       date_gen
+       (Int.gen_incl 0 60)
+       (Int.gen_incl 0 400))
     ~sexp_of:[%sexp_of: Interval.t * Date.t * int * int]
     ~f:(fun (interval, anchor, index, offset) ->
       let p = Interval.period interval ~anchor ~index in
@@ -58,7 +62,8 @@ let%test_unit "periods tile the calendar and index_of finds them" =
 let%expect_test "stable digest" =
   print_endline (Bin_prot.Shape.eval_to_digest_string Interval.Stable.V1.bin_shape_t);
   print_endline (Bin_prot.Shape.eval_to_digest_string Period.Stable.V1.bin_shape_t);
-  [%expect {|
+  [%expect
+    {|
     3e375b1870d4fd9ec526c6afedf1b55b
     841aa06981a02439ac52c8420215cb13
     |}]

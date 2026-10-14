@@ -25,7 +25,8 @@ let invoice =
 let%expect_test "receipts per payment" =
   print_s
     [%sexp
-      (Receipt.of_payment invoice (Payment_id.of_string "p1") |> Result.map_error ~f:Refusal.code
+      (Receipt.of_payment invoice (Payment_id.of_string "p1")
+       |> Result.map_error ~f:Refusal.code
        : (Receipt.t, string) Result.t)];
   let issued =
     Invoice.finalize
@@ -57,9 +58,11 @@ let%expect_test "receipts per payment" =
     print_endline "--");
   print_s
     [%sexp
-      (Receipt.of_payment paid (Payment_id.of_string "p3") |> Result.map_error ~f:Refusal.code
+      (Receipt.of_payment paid (Payment_id.of_string "p3")
+       |> Result.map_error ~f:Refusal.code
        : (Receipt.t, string) Result.t)];
-  [%expect {|
+  [%expect
+    {|
     (Error INVALID_STATE)
     Receipt for invoice INV-2026-000009
     Payment p1

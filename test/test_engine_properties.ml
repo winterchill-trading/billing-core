@@ -29,7 +29,9 @@ let plan =
         (Price.tiered
            calls
            Volume
-           [ Price.Tier.create ~up_to:100 (Unit_price.of_string eur "0.013" |> Or_error.ok_exn)
+           [ Price.Tier.create
+               ~up_to:100
+               (Unit_price.of_string eur "0.013" |> Or_error.ok_exn)
              |> Or_error.ok_exn
            ; Price.Tier.create (Unit_price.of_string eur "0.007" |> Or_error.ok_exn)
              |> Or_error.ok_exn
@@ -85,7 +87,9 @@ let%test_unit "the ledger agrees with the invoices after random days" =
       let balances =
         ref
           (List.fold accounts ~init:Ledger.Balances.empty ~f:(fun b account ->
-             Ledger.Balances.apply b { seq = Ledger.Balances.next_seq b; event = Account_opened account }
+             Ledger.Balances.apply
+               b
+               { seq = Ledger.Balances.next_seq b; event = Account_opened account }
              |> Or_error.ok_exn))
       in
       let booked = Ledger.Idempotency_key.Table.create () in
@@ -110,7 +114,7 @@ let%test_unit "the ledger agrees with the invoices after random days" =
           |> Or_error.ok_exn
         in
         let _, outcome =
-          Billing.subscribe store config sub ~today:start ~now:(Time_ns.epoch)
+          Billing.subscribe store config sub ~today:start ~now:Time_ns.epoch
           |> Result.ok
           |> Option.value_exn
         in
@@ -125,7 +129,9 @@ let%test_unit "the ledger agrees with the invoices after random days" =
           let expected =
             List.map mine ~f:Invoice.amount_due |> Money.Amount.sum eur |> Or_error.ok_exn
           in
-          let actual = Ledger.Balances.balance !balances (config.chart.receivable customer) eur in
+          let actual =
+            Ledger.Balances.balance !balances (config.chart.receivable customer) eur
+          in
           if not (Money.Amount.equal actual expected)
           then
             raise_s
@@ -143,7 +149,12 @@ let%test_unit "the ledger agrees with the invoices after random days" =
       let usage_seq = ref 0 in
       List.iteri days ~f:(fun n ops ->
         let today = Date.add_days start n in
-        let now = Time_ns.of_date_ofday ~zone:Time_float.Zone.utc today (Time_ns.Ofday.of_string "12:00") in
+        let now =
+          Time_ns.of_date_ofday
+            ~zone:Time_float.Zone.utc
+            today
+            (Time_ns.Ofday.of_string "12:00")
+        in
         let open_invoices () =
           List.concat_map customers ~f:(Store.invoices_of_customer store)
           |> List.filter ~f:(fun (i : Invoice.t) ->
@@ -151,85 +162,97 @@ let%test_unit "the ledger agrees with the invoices after random days" =
             | Open -> true
             | _ -> false)
         in
-        let pick k = match open_invoices () with [] -> None | l -> Some (List.nth_exn l (k % List.length l)) in
+        let pick k =
+          match open_invoices () with
+          | [] -> None
+          | l -> Some (List.nth_exn l (k % List.length l))
+        in
         List.iter ops ~f:(fun op ->
           (match op with
-          | Usage (s, units) ->
-            incr usage_seq;
-            ignore
-              (Billing.record_usage
-                 store
-                 config
-                 (Usage.Record.create
-                    ~id:(Usage_id.of_string (sprintf "u%d" !usage_seq))
-                    ~subscription:(List.nth_exn subs s)
-                    ~meter:calls
-                    ~occurred_at:now
-                    (Units units)
-                  |> Or_error.ok_exn)
-               : (Usage.Outcome.t, Refusal.t) Result.t)
-          | Pay (k, percent) ->
-            Option.iter (pick k) ~f:(fun invoice ->
-              let due = Invoice.amount_due invoice in
-              let amount = Money.Amount.mul_ratio ~rounding:Up due (Q.of_ints percent 100) in
-              if Money.Amount.is_positive amount
-              then (
-                let payment =
-                  { Invoice.Payment.id = Payment_id.of_string (sprintf "p%d-%d" n k)
-                  ; amount
-                  ; paid_at = now
-                  }
-                in
-                (* Paying twice is a retry: same entry, nothing new. *)
-                List.iter [ 1; 2 ] ~f:(fun _ ->
-                  match Billing.pay store config invoice.id payment ~from:funding with
-                  | Ok (_, _, outcome) -> book outcome
-                  | Error refusal -> raise_s [%sexp (refusal : Refusal.t)])))
-          | Fail k ->
-            Option.iter (pick k) ~f:(fun invoice ->
-              (* The second report of the same failure is a retry. *)
-              List.iter [ 1; 2 ] ~f:(fun _ ->
-                match
-                  Billing.payment_failed store config invoice.id ~on:today ~reason:"declined" ~now
-                with
-                | Ok (_, outcome) -> book outcome
-                | Error _ -> ()))
-          | Credit k ->
-            Option.iter (pick k) ~f:(fun invoice ->
-              match
-                Billing.credit
+           | Usage (s, units) ->
+             incr usage_seq;
+             ignore
+               (Billing.record_usage
                   store
                   config
-                  invoice.id
-                  ~id:(Credit_note_id.of_string (sprintf "cn-%d-%d" n k))
-                  ~reason:Service_issue
-                  `Full
-                  ~issued_on:today
-                  ~refund_to:wallet
-                  ~now
-              with
-              | Ok (_, _, outcome) -> book outcome
-              | Error _ -> ())
-          | Cancel s ->
-            let cancel () =
-              Billing.cancel
-                store
-                config
-                (List.nth_exn subs s)
-                ~at:(`Immediately today)
-                ~refund_to:wallet
-                ~now
-            in
-            (match cancel () with
-             | Ok (_, first) ->
-               book first;
-               (* A retry returns the same invoices and entries. *)
-               let _, again = cancel () |> Result.ok |> Option.value_exn in
-               [%test_eq: Invoice_id.t list]
-                 (List.map again.invoices ~f:(fun i -> i.id))
-                 (List.map first.invoices ~f:(fun i -> i.id));
-               book again
-             | Error _ -> ()));
+                  (Usage.Record.create
+                     ~id:(Usage_id.of_string (sprintf "u%d" !usage_seq))
+                     ~subscription:(List.nth_exn subs s)
+                     ~meter:calls
+                     ~occurred_at:now
+                     (Units units)
+                   |> Or_error.ok_exn)
+                : (Usage.Outcome.t, Refusal.t) Result.t)
+           | Pay (k, percent) ->
+             Option.iter (pick k) ~f:(fun invoice ->
+               let due = Invoice.amount_due invoice in
+               let amount =
+                 Money.Amount.mul_ratio ~rounding:Up due (Q.of_ints percent 100)
+               in
+               if Money.Amount.is_positive amount
+               then (
+                 let payment =
+                   { Invoice.Payment.id = Payment_id.of_string (sprintf "p%d-%d" n k)
+                   ; amount
+                   ; paid_at = now
+                   }
+                 in
+                 (* Paying twice is a retry: same entry, nothing new. *)
+                 List.iter [ 1; 2 ] ~f:(fun _ ->
+                   match Billing.pay store config invoice.id payment ~from:funding with
+                   | Ok (_, _, outcome) -> book outcome
+                   | Error refusal -> raise_s [%sexp (refusal : Refusal.t)])))
+           | Fail k ->
+             Option.iter (pick k) ~f:(fun invoice ->
+               (* The second report of the same failure is a retry. *)
+               List.iter [ 1; 2 ] ~f:(fun _ ->
+                 match
+                   Billing.payment_failed
+                     store
+                     config
+                     invoice.id
+                     ~on:today
+                     ~reason:"declined"
+                     ~now
+                 with
+                 | Ok (_, outcome) -> book outcome
+                 | Error _ -> ()))
+           | Credit k ->
+             Option.iter (pick k) ~f:(fun invoice ->
+               match
+                 Billing.credit
+                   store
+                   config
+                   invoice.id
+                   ~id:(Credit_note_id.of_string (sprintf "cn-%d-%d" n k))
+                   ~reason:Service_issue
+                   `Full
+                   ~issued_on:today
+                   ~refund_to:wallet
+                   ~now
+               with
+               | Ok (_, _, outcome) -> book outcome
+               | Error _ -> ())
+           | Cancel s ->
+             let cancel () =
+               Billing.cancel
+                 store
+                 config
+                 (List.nth_exn subs s)
+                 ~at:(`Immediately today)
+                 ~refund_to:wallet
+                 ~now
+             in
+             (match cancel () with
+              | Ok (_, first) ->
+                book first;
+                (* A retry returns the same invoices and entries. *)
+                let _, again = cancel () |> Result.ok |> Option.value_exn in
+                [%test_eq: Invoice_id.t list]
+                  (List.map again.invoices ~f:(fun i -> i.id))
+                  (List.map first.invoices ~f:(fun i -> i.id));
+                book again
+              | Error _ -> ()));
           check_all [%sexp (n : int), (op : op)]);
         List.iter (Billing.run store config ~today ~now) ~f:(fun (_, result) ->
           match result with
@@ -254,7 +277,8 @@ let%test_unit "the ledger agrees with the invoices after random days" =
           (Ledger.Balances.balance !balances (config.chart.receivable customer) eur)
           expected);
       let numbers =
-        List.filter_map invoices ~f:(fun i -> i.number) |> List.sort ~compare:String.compare
+        List.filter_map invoices ~f:(fun i -> i.number)
+        |> List.sort ~compare:String.compare
       in
       [%test_eq: string list]
         numbers

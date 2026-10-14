@@ -175,7 +175,10 @@ let%expect_test "mid-period changes prorate by day" =
 
 let%test_unit "proration of a seat change never exceeds the full-period difference" =
   Quickcheck.test
-    (Quickcheck.Generator.tuple3 (Int.gen_incl 0 30) (Int.gen_incl 0 30) (Int.gen_incl 0 29))
+    (Quickcheck.Generator.tuple3
+       (Int.gen_incl 0 30)
+       (Int.gen_incl 0 30)
+       (Int.gen_incl 0 29))
     ~sexp_of:[%sexp_of: int * int * int]
     ~f:(fun (before, after, day) ->
       let t = opened ~seats:before starter in
@@ -199,7 +202,9 @@ let%test_unit "proration of a seat change never exceeds the full-period differen
           (Plan.recurring_total starter ~seats:before)
       in
       assert (Money.Amount.( <= ) (Money.Amount.abs prorated) (Money.Amount.abs full));
-      assert (Money.Amount.is_zero prorated || Money.Amount.sign prorated = Money.Amount.sign full))
+      assert (
+        Money.Amount.is_zero prorated
+        || Money.Amount.sign prorated = Money.Amount.sign full))
 ;;
 
 let%expect_test "stable digest" =
