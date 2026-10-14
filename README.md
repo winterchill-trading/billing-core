@@ -47,8 +47,8 @@ open Billing_core
 module Store = Store_memory.Direct
 module Billing = Engine.Make (Monad.Ident) (Store)
 
-(* [plan] (49.00 EUR a month plus API calls above 10,000 at 0.0008 EUR) and [noon] are
-   defined in examples/quickstart.ml. *)
+(* [plan] (49.00 EUR a month plus API calls above 10,000 at 0.0008 EUR),
+   [usage_record] and [noon] (midday UTC of a date) are as in examples/quickstart.ml. *)
 let () =
   let vat = Tax.Rate.create ~name:"vat-standard" ~bps:2000 |> Or_error.ok_exn in
   let config = { Engine.Config.default with tax = Tax.flat vat } in
@@ -62,7 +62,7 @@ let () =
   (* The opening invoice bills March's flat fee in advance. *)
   let _, opening =
     Billing.subscribe store config subscription ~today:(Date.of_string "2026-03-01")
-      ~now:(noon "2026-03-01")
+      ~now:(noon (Date.of_string "2026-03-01"))
     |> Refusal.ok_exn
   in
   (* Usage arrives with producer-chosen ids; a resend is a [Duplicate]. *)
@@ -70,7 +70,7 @@ let () =
   (* On 1 April, March closes: its usage plus April's flat fee, one invoice. *)
   let _, closing =
     Billing.bill store config subscription.id ~today:(Date.of_string "2026-04-01")
-      ~now:(noon "2026-04-01")
+      ~now:(noon (Date.of_string "2026-04-01"))
     |> Refusal.ok_exn
   in
   (* [closing.entries] are ledger entries to append to the journal. *)
