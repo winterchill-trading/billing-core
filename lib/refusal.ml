@@ -52,5 +52,6 @@ let code = function
 ;;
 
 let to_error t = Error.create_s (sexp_of_t t)
+let ok_exn r = Result.map_error r ~f:to_error |> Or_error.ok_exn
 let of_or_error r = Result.map_error r ~f:(fun e -> Invalid e)
 let invalid_state ~what ~id ~state ~action = Error (Invalid_state { what; id; state; action })

@@ -51,6 +51,9 @@ val code : t -> string
 (** The refusal as an error, for callers that work in [Or_error]. *)
 val to_error : t -> Error.t
 
+(** The value, or raise the refusal as an error. For tests, examples and scripts. *)
+val ok_exn : ('a, t) Result.t -> 'a
+
 (** [of_or_error r] maps [Error e] to [Invalid e]. *)
 val of_or_error : 'a Or_error.t -> ('a, t) Result.t
 
