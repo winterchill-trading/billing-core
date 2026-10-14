@@ -10,3 +10,4 @@ module Subscription_id = Subscription_id
 module Usage_id = Usage_id
 module Period = Period
 module Interval = Interval
+module Unit_price = Unit_price
