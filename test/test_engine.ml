@@ -323,3 +323,47 @@ let%expect_test "a payment ends dunning; a credit note and an immediate cancella
     (Error PERIOD_CLOSED)
     |}]
 ;;
+
+let%expect_test "month-end anchors: the advance line covers the period the schedule uses" =
+  let store = Store.create () in
+  let id = Subscription_id.of_string "sub-eom" in
+  let sub =
+    Subscription.create ~id ~customer ~plan:starter ~started_on:(d "2026-01-31") ()
+    |> Or_error.ok_exn
+  in
+  let _ =
+    Billing.subscribe
+      store
+      config
+      sub
+      ~today:(d "2026-01-31")
+      ~now:(noon (d "2026-01-31"))
+    |> ok
+  in
+  let _, outcome =
+    Billing.bill store config id ~today:(d "2026-03-31") ~now:(noon (d "2026-03-31"))
+    |> ok
+  in
+  List.iter outcome.invoices ~f:(fun (i : Invoice.t) ->
+    List.iter i.items ~f:(fun item ->
+      print_endline (Option.value_map item.line.period ~default:"-" ~f:Period.to_string)));
+  let sub, outcome =
+    Billing.cancel
+      store
+      config
+      id
+      ~at:(`Immediately (d "2026-04-15"))
+      ~refund_to:wallet
+      ~now:(noon (d "2026-04-15"))
+    |> ok
+  in
+  print_s [%sexp (Subscription.current_period sub : Period.t)];
+  List.iter outcome.credit_notes ~f:(fun n -> print_s [%sexp (n.total : Money.Amount.t)]);
+  [%expect
+    {|
+    2026-02-28..2026-03-30
+    2026-03-31..2026-04-29
+    ((start 2026-03-31) (stop 2026-04-30))
+    "30.00 EUR"
+    |}]
+;;
