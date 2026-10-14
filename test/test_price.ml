@@ -84,7 +84,7 @@ let%expect_test "per seat above the included seats" =
     |}]
 ;;
 
-let%test_unit "graduated is monotone and never above volume at a tier's end" =
+let%test_unit "graduated pricing is monotone and never negative" =
   Quickcheck.test
     (Quickcheck.Generator.tuple2 (Int.gen_incl 0 50_000) (Int.gen_incl 0 50_000))
     ~sexp_of:[%sexp_of: int * int]
