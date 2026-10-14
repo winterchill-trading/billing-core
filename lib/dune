@@ -1,0 +1,6 @@
+(library
+ (name billing_core)
+ (public_name billing-core)
+ (libraries core zarith money ledger)
+ (preprocess
+  (pps ppx_jane)))
