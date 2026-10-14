@@ -19,3 +19,4 @@ module Numbering = Numbering
 module Refusal = Refusal
 module Invoice = Invoice
 module Credit_note = Credit_note
+module Receipt = Receipt
