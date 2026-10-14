@@ -1,1 +1,10 @@
-(** Billing as pure state machines. *)
+(** Recurring and usage-based billing as pure values and state machines. *)
+
+module Credit_note_id = Credit_note_id
+module Customer_id = Customer_id
+module Invoice_id = Invoice_id
+module Meter = Meter
+module Payment_id = Payment_id
+module Plan_id = Plan_id
+module Subscription_id = Subscription_id
+module Usage_id = Usage_id
