@@ -417,13 +417,27 @@ module Make (M : Monad.S) (Store : Store.S with type 'a io = 'a M.t) = struct
     issue_credit_note store config invoice_id ~id ~reason which ~issued_on ~refund_to ~now
   ;;
 
+  let cancel_note_id invoice =
+    let readable = sprintf "%s/cancel" (Invoice_id.to_string invoice) in
+    match Credit_note_id.of_string_or_error readable with
+    | Ok id -> id
+    | Error _ -> Credit_note_id.of_string ("cn-" ^ Md5.to_hex (Md5.digest_string readable))
+  ;;
+
   let cancel store (config : Config.t) id ~at ~refund_to ~now =
     (match%bind Store.find_subscription store id with
      | None -> fail (Not_found { what = "subscription"; id = Subscription_id.to_string id })
      | Some before -> ok before)
     >>=? fun (before : Subscription.t) ->
     update_subscription store id ~f:(fun sub ->
-      lift (Subscription.cancel sub ~at) >>=? fun next -> ok (next, ()))
+      match at, sub.status, sub.ended_on with
+      | `Immediately on, Cancelled, Some ended_on when Date.equal on ended_on ->
+        (* A retry: the cancellation is stored, the invoice and credit steps below are
+           idempotent and return the same results again. *)
+        ok (sub, ())
+      | `At_period_end, (Trialing | Active | Past_due), _ when sub.cancel_at_period_end ->
+        ok (sub, ())
+      | _ -> lift (Subscription.cancel sub ~at) >>=? fun next -> ok (next, ()))
     >>=? fun (sub, ()) ->
     match at with
     | `At_period_end -> ok (sub, Outcome.empty)
@@ -471,23 +485,21 @@ module Make (M : Monad.S) (Store : Store.S with type 'a io = 'a M.t) = struct
                   Option.some_if (Money.Amount.is_positive amount) (i, amount)
                 | _ -> None)
             in
+            let creditable =
+              Money.Amount.sub_exn invoice.total (Invoice.amount_credited invoice)
+            in
+            (* An invoice already credited (in full or in part) by hand is left alone:
+               the unused share was settled that way. *)
             (match invoice.status, lines with
-             | (Open | Paid), _ :: _ ->
-               let note_id =
-                 Credit_note_id.of_string_or_error
-                   (sprintf "%s/cancel" (Invoice_id.to_string invoice.id))
-                 |> Result.ok
-                 |> Option.value
-                      ~default:
-                        (Credit_note_id.of_string
-                           ("cn-"
-                            ^ Md5.to_hex (Md5.digest_string (Invoice_id.to_string invoice.id))))
-               in
+             | (Open | Paid), _ :: _
+               when Money.Amount.equal creditable invoice.total
+                    || List.exists invoice.credits ~f:(fun c ->
+                      Credit_note_id.equal c.credit_note (cancel_note_id invoice.id)) ->
                issue_credit_note
                  store
                  config
                  invoice.id
-                 ~id:note_id
+                 ~id:(cancel_note_id invoice.id)
                  ~reason:Order_change
                  (`Lines lines)
                  ~issued_on:on
@@ -571,31 +583,49 @@ module Make (M : Monad.S) (Store : Store.S with type 'a io = 'a M.t) = struct
      | None -> fail (Not_found { what = "invoice"; id = Invoice_id.to_string invoice_id })
      | Some invoice -> ok invoice)
     >>=? fun (invoice : Invoice.t) ->
-    (match invoice.status with
-     | Open -> ok ()
-     | Draft | Paid | Void | Uncollectible ->
-       Refusal.invalid_state
-         ~what:"invoice"
-         ~id:(Invoice_id.to_string invoice.id)
-         ~state:(Invoice.Status.to_string invoice.status)
-         ~action:"payment_failed"
-       |> lift)
-    >>=? fun () ->
+    let must_be_open () =
+      match invoice.status with
+      | Open -> ok ()
+      | Draft | Paid | Void | Uncollectible ->
+        Refusal.invalid_state
+          ~what:"invoice"
+          ~id:(Invoice_id.to_string invoice.id)
+          ~state:(Invoice.Status.to_string invoice.status)
+          ~action:"payment_failed"
+        |> lift
+    in
     let rec attempt n =
       let%bind existing = Store.find_dunning store invoice_id in
       (match existing with
+       | Some dunning
+         when [%equal: (Date.t * string) option]
+                (List.last dunning.failures)
+                (Some (on, reason)) ->
+         (* The same failure reported again: a retry. Redo the actions the current state
+            calls for; each of them is idempotent. *)
+         ok (dunning, `Retry (Dunning.standing_actions config.dunning dunning))
        | None ->
-         ok
-           (Dunning.start
-              config.dunning
-              ~invoice:invoice_id
-              ?subscription:invoice.subscription
-              ~on
-              ~reason
-              ())
+         must_be_open ()
+         >>=? fun () ->
+         let dunning, actions =
+           Dunning.start
+             config.dunning
+             ~invoice:invoice_id
+             ?subscription:invoice.subscription
+             ~on
+             ~reason
+             ()
+         in
+         ok (dunning, `New actions)
        | Some dunning ->
-         lift (Dunning.apply config.dunning dunning (Payment_failed { on; reason })))
+         must_be_open ()
+         >>=? fun () ->
+         lift (Dunning.apply config.dunning dunning (Payment_failed { on; reason }))
+         >>=? fun (next, actions) -> ok (next, `New actions))
       >>=? fun (next, actions) ->
+      match actions with
+      | `Retry actions -> ok (next, actions)
+      | `New actions ->
       match%bind Store.save_dunning store next with
       | `Saved -> ok (next, actions)
       | `Stale _ ->
