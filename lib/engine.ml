@@ -255,8 +255,12 @@ module Make (M : Monad.S) (Store : Store.S with type 'a io = 'a M.t) = struct
           then []
           else (
             let plan = Option.value sub.pending_plan ~default:sub.plan in
+            (* The same schedule as [Subscription.closed]: by index from the anchor while
+               the interval stays, from this boundary when it changes. *)
             let next_period =
-              Interval.period plan.interval ~anchor:period.stop ~index:0
+              if Interval.equal plan.interval sub.plan.interval
+              then Subscription.period sub ~index:(sub.current + 1)
+              else Interval.period plan.interval ~anchor:period.stop ~index:0
             in
             Charges.in_advance plan ~seats:sub.seats ~period:next_period)
         in
