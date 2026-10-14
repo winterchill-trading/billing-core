@@ -1,0 +1,27 @@
+INV-2026-000001 (open), due 58.80 EUR
+  Growth plan                     1  49.00 EUR
+  tax vat-standard                   9.80 EUR
+(batch-1 Accepted)
+(batch-2 Accepted)
+(batch-1 Duplicate)
+INV-2026-000002 (open), due 73.20 EUR
+  API calls above 10,000      25000  12.00 EUR
+  Growth plan                     1  49.00 EUR
+  tax vat-standard                   12.20 EUR
+entry billing:invoice:sub-1@2026-04-01:issue
+  Credit income:billing                     61.00 EUR
+  Credit liability:tax/vat-standard         12.20 EUR
+  Debit  receivable:billing/customer-1      73.20 EUR
+entry billing:invoice:sub-1@2026-04-01:payment:payment-1
+  Debit  customer:customer-1/eur            73.20 EUR
+  Credit receivable:billing/customer-1      73.20 EUR
+Receipt for invoice INV-2026-000002
+Payment payment-1
+Paid at 2026-04-03 12:00:00 UTC
+  API calls above 10,000: 12.00 EUR
+  Growth plan: 49.00 EUR
+  tax vat-standard: 12.20 EUR
+Invoice total: 73.20 EUR
+This payment: 73.20 EUR
+Paid to date: 73.20 EUR
+Balance: 0.00 EUR
