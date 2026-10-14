@@ -17,3 +17,4 @@ module Tax = Tax
 module Rounding_rules = Rounding_rules
 module Numbering = Numbering
 module Refusal = Refusal
+module Invoice = Invoice
