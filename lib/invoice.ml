@@ -71,6 +71,7 @@ module Repr = struct
     ; due_on : Date.Stable.V1.t option
     ; payments : Payment.t list
     ; credits : Credit.t list
+    ; written_off_after : int option
     ; revision : int
     }
   [@@deriving bin_io, sexp, compare, equal]
@@ -94,6 +95,7 @@ type t = Repr.t =
   ; due_on : Date.t option
   ; payments : Payment.t list
   ; credits : Credit.t list
+  ; written_off_after : int option
   ; revision : int
   }
 [@@deriving compare, equal, sexp_of]
@@ -196,6 +198,7 @@ let draft ~id ~customer ?subscription ?period ~currency ~tax ~rounding lines =
   ; due_on = None
   ; payments = []
   ; credits = []
+  ; written_off_after = None
   ; revision = 0
   }
 ;;
@@ -234,6 +237,20 @@ let amount_due t =
 let overpaid t =
   let left = outstanding t in
   if Money.Amount.is_negative left then Money.Amount.neg left else Money.Amount.zero t.currency
+;;
+
+let written_off t =
+  Option.map t.written_off_after ~f:(fun n ->
+    let before = sum t.currency (List.map (List.take t.payments n) ~f:(fun p -> p.amount)) in
+    Money.Amount.sub_exn (Money.Amount.sub_exn t.total before) (amount_credited t))
+;;
+
+let is_recovery t payment_id =
+  match t.written_off_after with
+  | None -> false
+  | Some n ->
+    List.drop t.payments n
+    |> List.exists ~f:(fun (p : Payment.t) -> Payment_id.equal p.id payment_id)
 ;;
 
 let is_overdue t ~today =
@@ -352,7 +369,13 @@ let void t =
 
 let mark_uncollectible t =
   match t.status with
-  | Open -> Ok { t with status = Uncollectible; revision = t.revision + 1 }
+  | Open ->
+    Ok
+      { t with
+        status = Uncollectible
+      ; written_off_after = Some (List.length t.payments)
+      ; revision = t.revision + 1
+      }
   | Draft | Paid | Void | Uncollectible -> refuse t ~action:"mark_uncollectible"
 ;;
 

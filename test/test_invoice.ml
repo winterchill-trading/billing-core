@@ -242,5 +242,5 @@ let%test_unit "totals identity and amount due over random payments" =
 
 let%expect_test "stable digest" =
   print_endline (Bin_prot.Shape.eval_to_digest_string Invoice.Stable.V1.bin_shape_t);
-  [%expect {| 4e6dbe7cffa223d16f5f21797d531fac |}]
+  [%expect {| 304f19046448ab1c640fc5c61963f5e8 |}]
 ;;

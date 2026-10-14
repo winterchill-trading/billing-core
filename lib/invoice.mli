@@ -109,6 +109,9 @@ type t = private
   ; due_on : Date.t option
   ; payments : Payment.t list (** oldest first *)
   ; credits : Credit.t list (** oldest first *)
+  ; written_off_after : int option
+  (** set by {!mark_uncollectible}: how many payments had been recorded then; later
+      payments are recoveries *)
   ; revision : int
   }
 [@@deriving sexp, compare, equal]
@@ -148,6 +151,13 @@ val amount_due : t -> Money.Amount.t
 
 (** [paid + credited - total] when positive: money owed back to the customer. *)
 val overpaid : t -> Money.Amount.t
+
+(** The amount written off by {!mark_uncollectible}, if it was marked: the amount due
+    at that moment. *)
+val written_off : t -> Money.Amount.t option
+
+(** Whether the payment with this id arrived after the invoice was written off. *)
+val is_recovery : t -> Payment_id.t -> bool
 
 (** [true] when open or uncollectible, money is still due and [today] is after the due
     date. *)
