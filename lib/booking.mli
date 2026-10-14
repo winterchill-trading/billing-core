@@ -48,13 +48,12 @@ val issue_key : Invoice_id.t -> Ledger.Idempotency_key.t Or_error.t
 (** The entry for an issued invoice. Fails for a draft or void invoice. *)
 val issue : Chart.t -> Invoice.t -> at:Time_ns.t -> Ledger.Entry.t option Or_error.t
 
-(** The entry for [payment], given the invoice as it was before the payment was
-    recorded (its status decides between receivable and recovery). [from] is the account
-    debited. *)
+(** The entry for a payment the invoice has recorded (so a retry derives the same
+    entry). [from] is the account debited. Fails if the invoice has no such payment. *)
 val payment
   :  Chart.t
   -> Invoice.t
-  -> Invoice.Payment.t
+  -> Payment_id.t
   -> from:Ledger.Account_id.t
   -> Ledger.Entry.t Or_error.t
 
@@ -68,8 +67,8 @@ val credit_note
   -> at:Time_ns.t
   -> Ledger.Entry.t option Or_error.t
 
-(** The write-off of an uncollectible invoice's amount due. Fails unless the invoice is
-    [Uncollectible]. *)
+(** The write-off of an uncollectible invoice: the amount due when it was marked. Fails
+    if the invoice was never marked uncollectible. *)
 val write_off : Chart.t -> Invoice.t -> at:Time_ns.t -> Ledger.Entry.t option Or_error.t
 
 (** The reversal of a voided invoice's issue entry; [None] if it was voided as a draft or

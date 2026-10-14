@@ -105,27 +105,37 @@ let issue chart (invoice : Invoice.t) ~at =
       |> Or_error.map ~f:Option.some)
 ;;
 
-let payment (chart : Chart.t) (invoice : Invoice.t) (payment : Invoice.Payment.t) ~from =
+let payment (chart : Chart.t) (invoice : Invoice.t) payment_id ~from =
   let%bind.Or_error () = issued_status invoice ~action:"payment" in
-  Or_error.try_with_join (fun () ->
-    let%bind.Or_error key =
-      key
-        "billing:invoice:%s:payment:%s"
-        (Invoice_id.to_string invoice.id)
-        (Payment_id.to_string payment.id)
-    in
-    let settles =
-      match invoice.status with
-      | Uncollectible -> chart.bad_debt
-      | Draft | Open | Paid | Void -> chart.receivable invoice.customer
-    in
-    entry
-      ~key
-      ~code:Fee
-      ~tag:"billing_payment"
-      ~reference:(reference invoice)
-      ~at:payment.paid_at
-      [ Ledger.Posting.debit from payment.amount; Ledger.Posting.credit settles payment.amount ])
+  match
+    List.find invoice.payments ~f:(fun (p : Invoice.Payment.t) ->
+      Payment_id.equal p.id payment_id)
+  with
+  | None ->
+    Or_error.error_s
+      [%message "Billing_core.Booking.payment: no such payment" (payment_id : Payment_id.t)]
+  | Some payment ->
+    Or_error.try_with_join (fun () ->
+      let%bind.Or_error key =
+        key
+          "billing:invoice:%s:payment:%s"
+          (Invoice_id.to_string invoice.id)
+          (Payment_id.to_string payment.id)
+      in
+      let settles =
+        if Invoice.is_recovery invoice payment.id
+        then chart.bad_debt
+        else chart.receivable invoice.customer
+      in
+      entry
+        ~key
+        ~code:Fee
+        ~tag:"billing_payment"
+        ~reference:(reference invoice)
+        ~at:payment.paid_at
+        [ Ledger.Posting.debit from payment.amount
+        ; Ledger.Posting.credit settles payment.amount
+        ])
 ;;
 
 let credit_note (chart : Chart.t) (invoice : Invoice.t) (note : Credit_note.t) ~refund_to ~at =
@@ -163,29 +173,28 @@ let credit_note (chart : Chart.t) (invoice : Invoice.t) (note : Credit_note.t) ~
 ;;
 
 let write_off (chart : Chart.t) (invoice : Invoice.t) ~at =
-  match invoice.status with
-  | Uncollectible ->
-    let due = Invoice.amount_due invoice in
-    if Money.Amount.is_zero due
-    then Ok None
-    else
-      Or_error.try_with_join (fun () ->
-        let%bind.Or_error key =
-          key "billing:invoice:%s:write-off" (Invoice_id.to_string invoice.id)
-        in
-        entry
-          ~key
-          ~code:Fee
-          ~tag:"billing_write_off"
-          ~reference:(reference invoice)
-          ~at
-          [ Ledger.Posting.debit chart.bad_debt due
-          ; Ledger.Posting.credit (chart.receivable invoice.customer) due
-          ]
-        |> Or_error.map ~f:Option.some)
-  | Draft | Open | Paid | Void ->
+  match Invoice.written_off invoice with
+  | None ->
     Or_error.error_s
-      [%message "Billing_core.Booking.write_off: invoice not uncollectible" (invoice.id : Invoice_id.t)]
+      [%message
+        "Billing_core.Booking.write_off: invoice never marked uncollectible"
+          (invoice.id : Invoice_id.t)]
+  | Some due when Money.Amount.is_zero due -> Ok None
+  | Some due ->
+    Or_error.try_with_join (fun () ->
+      let%bind.Or_error key =
+        key "billing:invoice:%s:write-off" (Invoice_id.to_string invoice.id)
+      in
+      entry
+        ~key
+        ~code:Fee
+        ~tag:"billing_write_off"
+        ~reference:(reference invoice)
+        ~at
+        [ Ledger.Posting.debit chart.bad_debt due
+        ; Ledger.Posting.credit (chart.receivable invoice.customer) due
+        ]
+      |> Or_error.map ~f:Option.some)
 ;;
 
 let void (chart : Chart.t) (invoice : Invoice.t) ~at =

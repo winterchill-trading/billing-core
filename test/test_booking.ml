@@ -81,8 +81,8 @@ let%expect_test "issue, part payment, credit note with refund" =
   show b;
   print_endline "-- pay 100.00";
   let p = { Invoice.Payment.id = Payment_id.of_string "p1"; amount = amount "100.00"; paid_at = at } in
-  let entry = Booking.payment chart invoice p ~from:wallet |> Or_error.ok_exn in
   let invoice, _ = Invoice.pay invoice p |> ok in
+  let entry = Booking.payment chart invoice p.id ~from:wallet |> Or_error.ok_exn in
   let b = Booking.apply b [ entry ] |> Or_error.ok_exn in
   show b;
   print_endline "-- credit 30.00 net";
@@ -131,10 +131,12 @@ let%expect_test "write-off, recovery and void" =
   show b;
   print_endline "-- late payment";
   let p = { Invoice.Payment.id = Payment_id.of_string "late"; amount = amount "95.20"; paid_at = at } in
+  let recovered, _ = Invoice.pay lost p |> ok in
   let b =
-    Booking.apply b [ Booking.payment chart lost p ~from:wallet |> Or_error.ok_exn ]
+    Booking.apply b [ Booking.payment chart recovered p.id ~from:wallet |> Or_error.ok_exn ]
     |> Or_error.ok_exn
   in
+  print_s [%sexp (recovered.status : Invoice.Status.t)];
   show b;
   print_endline "-- void another invoice";
   let other = issued [ Recurring, "10.00" ] in
@@ -150,6 +152,7 @@ let%expect_test "write-off, recovery and void" =
     expense:bad-debt               95.20 EUR
     customer:c-1/eur               1000.00 EUR
     -- late payment
+    Paid
     receivable:billing/c-1         0.00 EUR
     income:billing                 80.00 EUR
     liability:tax/vat-standard     15.20 EUR
@@ -194,7 +197,7 @@ let%test_unit "the receivable always equals the amount due" =
         | Ok (after, _) ->
           let b =
             (* Collected by bank transfer, so the payer's balance is not ours to check. *)
-            Booking.apply b [ Booking.payment chart invoice p ~from:funding |> Or_error.ok_exn ]
+            Booking.apply b [ Booking.payment chart after p.id ~from:funding |> Or_error.ok_exn ]
             |> Or_error.ok_exn
           in
           check b after;
