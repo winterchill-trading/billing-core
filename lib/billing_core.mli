@@ -22,3 +22,4 @@ module Refusal = Refusal
 module Invoice = Invoice
 module Credit_note = Credit_note
 module Receipt = Receipt
+module Usage = Usage
