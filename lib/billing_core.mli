@@ -26,3 +26,4 @@ module Usage = Usage
 module Charges = Charges
 module Proration = Proration
 module Subscription = Subscription
+module Dunning = Dunning
