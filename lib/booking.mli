@@ -6,12 +6,12 @@
     - Issuing an invoice debits the customer's receivable with the total and credits fee
       income (per component code, net of tax) and tax payable (per rate).
       [billing:invoice:<id>:issue]
-    - A payment debits the account the money came from (the customer's own account at
-      the bank, or a clearing account for card and bank collections) and credits the
+    - A payment debits the account the money came from (the customer's own account at the
+      bank, or a clearing account for card and bank collections) and credits the
       receivable; a payment on a written-off invoice credits bad debt instead (a
       recovery). [billing:invoice:<id>:payment:<payment id>]
-    - A credit note debits fee income and tax payable and credits the receivable with
-      the part that reduces the amount due and the refund account with the rest.
+    - A credit note debits fee income and tax payable and credits the receivable with the
+      part that reduces the amount due and the refund account with the rest.
       [billing:credit-note:<id>]
     - Writing off debits bad debt and credits the receivable with the amount due.
       [billing:invoice:<id>:write-off]
@@ -48,8 +48,8 @@ val issue_key : Invoice_id.t -> Ledger.Idempotency_key.t Or_error.t
 (** The entry for an issued invoice. Fails for a draft or void invoice. *)
 val issue : Chart.t -> Invoice.t -> at:Time_ns.t -> Ledger.Entry.t option Or_error.t
 
-(** The entry for a payment the invoice has recorded (so a retry derives the same
-    entry). [from] is the account debited. Fails if the invoice has no such payment. *)
+(** The entry for a payment the invoice has recorded (so a retry derives the same entry).
+    [from] is the account debited. Fails if the invoice has no such payment. *)
 val payment
   :  Chart.t
   -> Invoice.t
@@ -67,8 +67,8 @@ val credit_note
   -> at:Time_ns.t
   -> Ledger.Entry.t option Or_error.t
 
-(** The write-off of an uncollectible invoice: the amount due when it was marked. Fails
-    if the invoice was never marked uncollectible. *)
+(** The write-off of an uncollectible invoice: the amount due when it was marked. Fails if
+    the invoice was never marked uncollectible. *)
 val write_off : Chart.t -> Invoice.t -> at:Time_ns.t -> Ledger.Entry.t option Or_error.t
 
 (** The reversal of a voided invoice's issue entry; [None] if it was voided as a draft or

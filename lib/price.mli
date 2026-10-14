@@ -79,8 +79,8 @@ val currency : t -> Money.Currency.t
 (** The meter a usage price reads; [None] for flat and per-seat prices. *)
 val meter : t -> Meter.t option
 
-(** [true] for flat and per-seat prices, which are billed at the start of a period;
-    usage prices are billed at its end. *)
+(** [true] for flat and per-seat prices, which are billed at the start of a period; usage
+    prices are billed at its end. *)
 val in_advance : t -> bool
 
 (** [recurring t ~seats] is a flat price's amount, or the per-seat price times the seats

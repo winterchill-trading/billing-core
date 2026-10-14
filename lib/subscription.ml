@@ -51,7 +51,8 @@ type t = Repr.t =
 
 let create ~id ~customer ~(plan : Plan.t) ?(seats = 1) ~started_on () =
   if seats < 0
-  then Or_error.error_s [%message "Billing_core.Subscription: negative seats" (seats : int)]
+  then
+    Or_error.error_s [%message "Billing_core.Subscription: negative seats" (seats : int)]
   else (
     let anchor = Date.add_days started_on plan.trial_days in
     Ok
@@ -141,8 +142,8 @@ let closed t =
     else (
       let plan = Option.value t.pending_plan ~default:t.plan in
       let next = { t with current = t.current + 1 } in
-      (* A pending plan with another interval restarts the period schedule where the
-         next period starts, so the new interval counts from that day. *)
+      (* A pending plan with another interval restarts the period schedule where the next
+         period starts, so the new interval counts from that day. *)
       let next =
         if Interval.equal plan.interval t.plan.interval
         then next
@@ -153,7 +154,8 @@ let closed t =
 
 let check_change t (plan : Plan.t) =
   if not (Money.Currency.equal plan.currency t.plan.currency)
-  then Error (Refusal.Currency_mismatch { expected = t.plan.currency; got = plan.currency })
+  then
+    Error (Refusal.Currency_mismatch { expected = t.plan.currency; got = plan.currency })
   else Ok ()
 ;;
 
@@ -201,7 +203,8 @@ let change_plan t (plan : Plan.t) ~effective ~policy ~rounding =
          Error
            (Refusal.Invalid
               (Error.of_string
-                 "Billing_core.Subscription: an immediate change cannot change the interval"))
+                 "Billing_core.Subscription: an immediate change cannot change the \
+                  interval"))
        else (
          let%map.Result lines =
            prorate t ~on ~policy ~rounding ~new_plan:plan ~new_seats:t.seats
@@ -211,7 +214,10 @@ let change_plan t (plan : Plan.t) ~effective ~policy ~rounding =
                plan
              ; pending_plan = None
              ; pending_lines = t.pending_lines @ lines
-             ; anchor = (if t.opened then t.anchor else Date.add_days t.started_on plan.trial_days)
+             ; anchor =
+                 (if t.opened
+                  then t.anchor
+                  else Date.add_days t.started_on plan.trial_days)
              ; status =
                  (match t.status with
                   | Trialing when plan.trial_days = 0 -> Active
@@ -228,7 +234,8 @@ let set_seats t seats ~on ~policy ~rounding =
     then
       Error
         (Refusal.Invalid
-           (Error.create_s [%message "Billing_core.Subscription: negative seats" (seats : int)]))
+           (Error.create_s
+              [%message "Billing_core.Subscription: negative seats" (seats : int)]))
     else (
       let%map.Result lines =
         prorate t ~on ~policy ~rounding ~new_plan:t.plan ~new_seats:seats

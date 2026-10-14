@@ -2,15 +2,14 @@
 
     Every operation is safe to retry and safe to run from several processes at once:
     invoice ids are derived from the subscription and the period boundary they bill,
-    numbers are idempotent per document, saves are compare-and-set (a stale save
-    reloads and redoes the pure step), and ledger entries carry deterministic keys. The
-    engine never appends to a journal: it returns the entries and the caller books
-    them, so a retried call returns the same entries again and the journal recognises
-    the duplicates.
+    numbers are idempotent per document, saves are compare-and-set (a stale save reloads
+    and redoes the pure step), and ledger entries carry deterministic keys. The engine
+    never appends to a journal: it returns the entries and the caller books them, so a
+    retried call returns the same entries again and the journal recognises the duplicates.
 
     Periods close [close_after_days] after they end (default 0), which leaves producers
-    time to report late usage: a usage record dated before the start of the current
-    period is refused with {!Refusal.Period_closed}. *)
+    time to report late usage: a usage record dated before the start of the current period
+    is refused with {!Refusal.Period_closed}. *)
 
 open! Core
 
@@ -28,9 +27,9 @@ module Config : sig
     ; zone : Time_float.Zone.t (** the billing time zone: usage dates and period days *)
     }
 
-  (** No tax, default rounding, [INV-<year>-NNNNNN] and [CN-<year>-NNNNNN] numbers,
-      14 days to pay, no grace, credit-and-charge proration, the default dunning policy,
-      the default chart, UTC. *)
+  (** No tax, default rounding, [INV-<year>-NNNNNN] and [CN-<year>-NNNNNN] numbers, 14
+      days to pay, no grace, credit-and-charge proration, the default dunning policy, the
+      default chart, UTC. *)
   val default : t
 end
 
@@ -101,9 +100,9 @@ module Make (M : Monad.S) (Store : Store.S with type 'a io = 'a M.t) : sig
     -> (Subscription.t * Line.t list) result
 
   (** Cancels. [`Immediately on] also raises a final invoice for the usage and pending
-      lines of the current period up to [on], and, under a crediting proration policy,
-      a credit note for the unused share of what the period's invoice billed in advance
-      (the refund part goes to [refund_to]). *)
+      lines of the current period up to [on], and, under a crediting proration policy, a
+      credit note for the unused share of what the period's invoice billed in advance (the
+      refund part goes to [refund_to]). *)
   val cancel
     :  Store.t
     -> Config.t
@@ -134,8 +133,8 @@ module Make (M : Monad.S) (Store : Store.S with type 'a io = 'a M.t) : sig
     -> now:Time_ns.t
     -> (Dunning.t * Outcome.t) result
 
-  (** Advances every open dunning process to [today] and returns the retries to
-      attempt now, as (invoice, retry number). *)
+  (** Advances every open dunning process to [today] and returns the retries to attempt
+      now, as (invoice, retry number). *)
   val dunning_due : Store.t -> Config.t -> today:Date.t -> (Invoice_id.t * int) list M.t
 
   (** Issues a credit note ([`Full] or [`Lines]) and applies it to the invoice. Ends any
@@ -153,5 +152,10 @@ module Make (M : Monad.S) (Store : Store.S with type 'a io = 'a M.t) : sig
     -> (Credit_note.t * Invoice.t * Outcome.t) result
 
   (** Voids a draft or an unpaid open invoice and reverses its issue entry. *)
-  val void : Store.t -> Config.t -> Invoice_id.t -> now:Time_ns.t -> (Invoice.t * Outcome.t) result
+  val void
+    :  Store.t
+    -> Config.t
+    -> Invoice_id.t
+    -> now:Time_ns.t
+    -> (Invoice.t * Outcome.t) result
 end

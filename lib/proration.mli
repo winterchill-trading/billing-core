@@ -1,10 +1,10 @@
 (** Charges and credits for a change in the middle of a period.
 
-    The share of a period left after a change on date [d] is
-    [(stop - d) / (stop - start)] in days. A change credits that share of what was billed
-    in advance and charges that share of the new price. When the plan stays the same (a
-    seat change) the credit and the charge are netted into one line per component. Each
-    line is rounded once with the line rounding rule. *)
+    The share of a period left after a change on date [d] is [(stop - d) / (stop - start)]
+    in days. A change credits that share of what was billed in advance and charges that
+    share of the new price. When the plan stays the same (a seat change) the credit and
+    the charge are netted into one line per component. Each line is rounded once with the
+    line rounding rule. *)
 
 open! Core
 

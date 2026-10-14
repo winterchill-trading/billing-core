@@ -12,7 +12,10 @@ let remaining (period : Period.t) ~on =
   if not (Period.contains period on)
   then
     raise_s
-      [%message "Billing_core.Proration.remaining: date outside period" (on : Date.t) (period : Period.t)];
+      [%message
+        "Billing_core.Proration.remaining: date outside period"
+          (on : Date.t)
+          (period : Period.t)];
   Q.of_ints (Date.diff period.stop on) (Period.days period)
 ;;
 

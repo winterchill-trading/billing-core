@@ -10,12 +10,12 @@
     assigns the number, the issue and due dates and freezes the lines; an invoice whose
     total is zero is [Paid] at once. Totals always satisfy
     [subtotal = sum of line amounts], [tax_total = sum of tax lines] and
-    [total = subtotal + tax_total]; the amount due is
-    [total - paid - credited], never below zero.
+    [total = subtotal + tax_total]; the amount due is [total - paid - credited], never
+    below zero.
 
-    Payments are idempotent by payment id: the same id with the same amount is a
-    duplicate that changes nothing, with another amount a {!Refusal.Payment_conflict}.
-    Every transition increments [revision], which a store uses to refuse a stale write. *)
+    Payments are idempotent by payment id: the same id with the same amount is a duplicate
+    that changes nothing, with another amount a {!Refusal.Payment_conflict}. Every
+    transition increments [revision], which a store uses to refuse a stale write. *)
 
 open! Core
 
@@ -131,8 +131,8 @@ val draft
 (** Adds lines to a draft and recomputes the totals. *)
 val add_lines : t -> tax:Tax.t -> Line.t list -> (t, Refusal.t) Result.t
 
-(** Issues a draft: [Open], or [Paid] when the total is zero. Refuses a negative total
-    and a due date before the issue date. *)
+(** Issues a draft: [Open], or [Paid] when the total is zero. Refuses a negative total and
+    a due date before the issue date. *)
 val finalize
   :  t
   -> number:string
@@ -152,8 +152,8 @@ val amount_due : t -> Money.Amount.t
 (** [paid + credited - total] when positive: money owed back to the customer. *)
 val overpaid : t -> Money.Amount.t
 
-(** The amount written off by {!mark_uncollectible}, if it was marked: the amount due
-    at that moment. *)
+(** The amount written off by {!mark_uncollectible}, if it was marked: the amount due at
+    that moment. *)
 val written_off : t -> Money.Amount.t option
 
 (** Whether the payment with this id arrived after the invoice was written off. *)
@@ -168,9 +168,9 @@ val is_overdue : t -> today:Date.t -> bool
     the payment id is already recorded with the same amount. *)
 val pay : t -> Payment.t -> (t * [ `Applied | `Duplicate ], Refusal.t) Result.t
 
-(** Applies a credit note's total to an [Open] or [Paid] invoice. The credits together
-    may not exceed the total. An open invoice whose amount due reaches zero becomes
-    [Paid]. [`Duplicate] when the credit note is already applied with the same amount. *)
+(** Applies a credit note's total to an [Open] or [Paid] invoice. The credits together may
+    not exceed the total. An open invoice whose amount due reaches zero becomes [Paid].
+    [`Duplicate] when the credit note is already applied with the same amount. *)
 val credit
   :  t
   -> credit_note:Credit_note_id.t
@@ -180,8 +180,8 @@ val credit
 (** Cancels a draft, or an open invoice with no payment and no credit. *)
 val void : t -> (t, Refusal.t) Result.t
 
-(** Gives up collecting an open invoice. The amount due at that moment is written off;
-    a later payment still settles it. *)
+(** Gives up collecting an open invoice. The amount due at that moment is written off; a
+    later payment still settles it. *)
 val mark_uncollectible : t -> (t, Refusal.t) Result.t
 
 module Stable : sig

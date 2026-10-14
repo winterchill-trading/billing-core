@@ -15,7 +15,8 @@ let find t id = Map.find t id
 let find_or_error t id =
   match find t id with
   | Some plan -> Ok plan
-  | None -> Or_error.error_s [%message "Billing_core.Price_list: unknown plan" (id : Plan_id.t)]
+  | None ->
+    Or_error.error_s [%message "Billing_core.Price_list: unknown plan" (id : Plan_id.t)]
 ;;
 
 let in_currency t currency =

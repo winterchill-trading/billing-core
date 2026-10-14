@@ -76,7 +76,9 @@ let check ~existing (record : Record.t) =
   match existing with
   | None -> Ok Outcome.Accepted
   | Some existing ->
-    if Record.equal existing record then Ok Duplicate else Error (Refusal.Usage_conflict record.id)
+    if Record.equal existing record
+    then Ok Duplicate
+    else Error (Refusal.Usage_conflict record.id)
 ;;
 
 let chronological (a : Record.t) (b : Record.t) =
@@ -121,8 +123,5 @@ module Log = struct
   ;;
 
   let find t id = Map.find t id
-
-  let records t =
-    Map.data t |> List.sort ~compare:chronological
-  ;;
+  let records t = Map.data t |> List.sort ~compare:chronological
 end

@@ -116,13 +116,19 @@ module Make (M : Monad.S) (Store : Store.S with type 'a io = 'a M.t) = struct
     let r = usage "conformance-u1" ~sub:"conformance-sub-1" ~minutes:0 in
     let%bind first = Store.insert_usage store r in
     let%bind again =
-      Store.insert_usage store (usage "conformance-u1" ~sub:"conformance-sub-1" ~minutes:5)
+      Store.insert_usage
+        store
+        (usage "conformance-u1" ~sub:"conformance-sub-1" ~minutes:5)
     in
     let%bind (_ : [ `Inserted | `Exists of Usage.Record.t ]) =
-      Store.insert_usage store (usage "conformance-u2" ~sub:"conformance-sub-1" ~minutes:60)
+      Store.insert_usage
+        store
+        (usage "conformance-u2" ~sub:"conformance-sub-1" ~minutes:60)
     in
     let%bind (_ : [ `Inserted | `Exists of Usage.Record.t ]) =
-      Store.insert_usage store (usage "conformance-u3" ~sub:"conformance-sub-2" ~minutes:1)
+      Store.insert_usage
+        store
+        (usage "conformance-u3" ~sub:"conformance-sub-2" ~minutes:1)
     in
     let%map range =
       Store.usage
@@ -153,7 +159,9 @@ module Make (M : Monad.S) (Store : Store.S with type 'a io = 'a M.t) = struct
     let%bind first = Store.insert_invoice store i in
     let%bind again = Store.insert_invoice store i in
     let issued =
-      Invoice.finalize i ~number:"C-1" ~issued_on:day ~due_on:day |> Result.ok |> Option.value_exn
+      Invoice.finalize i ~number:"C-1" ~issued_on:day ~due_on:day
+      |> Result.ok
+      |> Option.value_exn
     in
     let%bind saved = Store.save_invoice store issued in
     let%bind stale = Store.save_invoice store issued in
@@ -185,8 +193,7 @@ module Make (M : Monad.S) (Store : Store.S with type 'a io = 'a M.t) = struct
     in
     let%bind () =
       expect
-        ([%equal: Invoice.t option] found (Some issued)
-         && List.length of_customer = 1)
+        ([%equal: Invoice.t option] found (Some issued) && List.length of_customer = 1)
         "find_invoice and invoices_of_customer"
         [%sexp (found : Invoice.t option)]
     in
@@ -217,7 +224,9 @@ module Make (M : Monad.S) (Store : Store.S with type 'a io = 'a M.t) = struct
       |> Result.ok
       |> Option.value_exn
     in
-    let%bind (_ : [ `Saved | `Stale of Dunning.t ]) = Store.save_dunning store recovered in
+    let%bind (_ : [ `Saved | `Stale of Dunning.t ]) =
+      Store.save_dunning store recovered
+    in
     let%bind open_after = Store.open_dunning store in
     let%map found = Store.find_dunning store d.invoice in
     let open Or_error.Let_syntax in

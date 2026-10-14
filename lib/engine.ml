@@ -82,8 +82,8 @@ module Make (M : Monad.S) (Store : Store.S with type 'a io = 'a M.t) = struct
     Time_ns.of_date_ofday ~zone:config.zone date Time_ns.Ofday.start_of_day
   ;;
 
-  (* Load, apply a pure step, save with compare-and-set; on a stale save, redo the step
-     on what is stored. *)
+  (* Load, apply a pure step, save with compare-and-set; on a stale save, redo the step on
+     what is stored. *)
   let update_subscription store id ~(f : Subscription.t -> (Subscription.t * 'a) result) =
     let rec attempt n (current : Subscription.t) =
       f current
@@ -99,7 +99,8 @@ module Make (M : Monad.S) (Store : Store.S with type 'a io = 'a M.t) = struct
           else attempt (n + 1) stored)
     in
     match%bind Store.find_subscription store id with
-    | None -> fail (Not_found { what = "subscription"; id = Subscription_id.to_string id })
+    | None ->
+      fail (Not_found { what = "subscription"; id = Subscription_id.to_string id })
     | Some current -> attempt 0 current
   ;;
 
@@ -123,7 +124,8 @@ module Make (M : Monad.S) (Store : Store.S with type 'a io = 'a M.t) = struct
   ;;
 
   let issue_entries (config : Config.t) invoice ~now =
-    of_or_error (Booking.issue config.chart invoice ~at:now) >>=? fun e -> ok (Option.to_list e)
+    of_or_error (Booking.issue config.chart invoice ~at:now)
+    >>=? fun e -> ok (Option.to_list e)
   ;;
 
   (* Finalises a stored draft with its number; an invoice already issued is left alone.
@@ -195,7 +197,8 @@ module Make (M : Monad.S) (Store : Store.S with type 'a io = 'a M.t) = struct
     | `Stale stored -> return stored
   ;;
 
-  let rec bill_from store (config : Config.t) (sub : Subscription.t) ~today ~now acc ~fuel =
+  let rec bill_from store (config : Config.t) (sub : Subscription.t) ~today ~now acc ~fuel
+    =
     let due : Subscription.Due.t =
       match Subscription.due sub ~today with
       | Close _ as close ->
@@ -222,7 +225,14 @@ module Make (M : Monad.S) (Store : Store.S with type 'a io = 'a M.t) = struct
         lift (Subscription.opened sub)
         >>=? fun next ->
         let%bind next = save_step store next in
-        bill_from store config next ~today ~now (Outcome.append acc outcome) ~fuel:(fuel - 1)
+        bill_from
+          store
+          config
+          next
+          ~today
+          ~now
+          (Outcome.append acc outcome)
+          ~fuel:(fuel - 1)
       | Close _ ->
         let period = Subscription.current_period sub in
         let%bind records =
@@ -258,7 +268,14 @@ module Make (M : Monad.S) (Store : Store.S with type 'a io = 'a M.t) = struct
         lift (Subscription.closed sub)
         >>=? fun next ->
         let%bind next = save_step store next in
-        bill_from store config next ~today ~now (Outcome.append acc outcome) ~fuel:(fuel - 1))
+        bill_from
+          store
+          config
+          next
+          ~today
+          ~now
+          (Outcome.append acc outcome)
+          ~fuel:(fuel - 1))
   ;;
 
   (* Bounds the catch-up of one call; a later call continues where this one stopped. *)
@@ -266,7 +283,8 @@ module Make (M : Monad.S) (Store : Store.S with type 'a io = 'a M.t) = struct
 
   let bill store config id ~today ~now =
     match%bind Store.find_subscription store id with
-    | None -> fail (Not_found { what = "subscription"; id = Subscription_id.to_string id })
+    | None ->
+      fail (Not_found { what = "subscription"; id = Subscription_id.to_string id })
     | Some sub -> bill_from store config sub ~today ~now Outcome.empty ~fuel:max_steps
   ;;
 
@@ -280,7 +298,7 @@ module Make (M : Monad.S) (Store : Store.S with type 'a io = 'a M.t) = struct
   let run store config ~today ~now =
     let%bind subs = Store.live_subscriptions store in
     List.fold subs ~init:(return []) ~f:(fun acc (sub : Subscription.t) ->
-      let%bind acc = acc in
+      let%bind acc in
       let%map result = bill store config sub.id ~today ~now in
       (sub.id, result) :: acc)
     >>| List.rev
@@ -302,16 +320,15 @@ module Make (M : Monad.S) (Store : Store.S with type 'a io = 'a M.t) = struct
       let closed =
         match sub.status, limit with
         | Cancelled, Some ended_on -> Date.( >= ) date ended_on
-        | (Trialing | Active | Past_due), Some billed_through -> Date.( < ) date billed_through
+        | (Trialing | Active | Past_due), Some billed_through ->
+          Date.( < ) date billed_through
         | _, None -> false
       in
       if closed
       then
         fail
           (Period_closed
-             { usage = record.id
-             ; billed_through = Option.value limit ~default:date
-             })
+             { usage = record.id; billed_through = Option.value limit ~default:date })
       else (
         match%bind Store.insert_usage store record with
         | `Inserted -> ok Usage.Outcome.Accepted
@@ -332,7 +349,12 @@ module Make (M : Monad.S) (Store : Store.S with type 'a io = 'a M.t) = struct
   let set_seats store (config : Config.t) id seats ~on =
     update_subscription store id ~f:(fun sub ->
       lift
-        (Subscription.set_seats sub seats ~on ~policy:config.proration ~rounding:config.rounding))
+        (Subscription.set_seats
+           sub
+           seats
+           ~on
+           ~policy:config.proration
+           ~rounding:config.rounding))
   ;;
 
   let credit_number store (config : Config.t) (id : Credit_note_id.t) ~issued_on =
@@ -370,8 +392,7 @@ module Make (M : Monad.S) (Store : Store.S with type 'a io = 'a M.t) = struct
     ~now
     =
     (match%bind Store.find_invoice store invoice_id with
-     | None ->
-       fail (Not_found { what = "invoice"; id = Invoice_id.to_string invoice_id })
+     | None -> fail (Not_found { what = "invoice"; id = Invoice_id.to_string invoice_id })
      | Some invoice -> ok invoice)
     >>=? fun (invoice : Invoice.t) ->
     let%bind existing =
@@ -385,7 +406,8 @@ module Make (M : Monad.S) (Store : Store.S with type 'a io = 'a M.t) = struct
        lift
          (match which with
           | `Full -> Credit_note.full ~id ~number ~issued_on ~reason invoice
-          | `Lines lines -> Credit_note.create ~id ~number ~issued_on ~reason invoice lines)
+          | `Lines lines ->
+            Credit_note.create ~id ~number ~issued_on ~reason invoice lines)
        >>=? fun note ->
        (match%bind Store.insert_credit_note store note with
         | `Inserted -> ok note
@@ -426,7 +448,8 @@ module Make (M : Monad.S) (Store : Store.S with type 'a io = 'a M.t) = struct
 
   let cancel store (config : Config.t) id ~at ~refund_to ~now =
     (match%bind Store.find_subscription store id with
-     | None -> fail (Not_found { what = "subscription"; id = Subscription_id.to_string id })
+     | None ->
+       fail (Not_found { what = "subscription"; id = Subscription_id.to_string id })
      | Some before -> ok before)
     >>=? fun (before : Subscription.t) ->
     update_subscription store id ~f:(fun sub ->
@@ -446,7 +469,11 @@ module Make (M : Monad.S) (Store : Store.S with type 'a io = 'a M.t) = struct
       let period = Subscription.current_period before in
       (* Usage and pending lines of the cut-short period, billed now. *)
       let%bind records =
-        Store.usage store id ~from:(start_of config period.start) ~until:(start_of config on)
+        Store.usage
+          store
+          id
+          ~from:(start_of config period.start)
+          ~until:(start_of config on)
       in
       (if Date.( > ) on period.start
        then (
@@ -480,7 +507,10 @@ module Make (M : Monad.S) (Store : Store.S with type 'a io = 'a M.t) = struct
                 match item.line.kind, item.line.period with
                 | Recurring, Some p when Period.equal p period ->
                   let amount =
-                    Money.Amount.mul_ratio ~rounding:config.rounding.line item.line.amount share
+                    Money.Amount.mul_ratio
+                      ~rounding:config.rounding.line
+                      item.line.amount
+                      share
                   in
                   Option.some_if (Money.Amount.is_positive amount) (i, amount)
                 | _ -> None)
@@ -488,8 +518,8 @@ module Make (M : Monad.S) (Store : Store.S with type 'a io = 'a M.t) = struct
             let creditable =
               Money.Amount.sub_exn invoice.total (Invoice.amount_credited invoice)
             in
-            (* An invoice already credited (in full or in part) by hand is left alone:
-               the unused share was settled that way. *)
+            (* An invoice already credited (in full or in part) by hand is left alone: the
+               unused share was settled that way. *)
             (match invoice.status, lines with
              | (Open | Paid), _ :: _
                when Money.Amount.equal creditable invoice.total
@@ -524,11 +554,13 @@ module Make (M : Monad.S) (Store : Store.S with type 'a io = 'a M.t) = struct
          store
          config
          invoice
-         (Payment_succeeded
-            { on = Time_ns.to_date payment.paid_at ~zone:config.zone })
+         (Payment_succeeded { on = Time_ns.to_date payment.paid_at ~zone:config.zone })
      | Draft | Open | Void | Uncollectible -> ok ())
     >>=? fun () ->
-    ok (invoice, receipt, { Outcome.empty with invoices = [ invoice ]; entries = [ entry ] })
+    ok
+      ( invoice
+      , receipt
+      , { Outcome.empty with invoices = [ invoice ]; entries = [ entry ] } )
   ;;
 
   let perform store (config : Config.t) (invoice : Invoice.t) actions ~on ~now =
@@ -547,13 +579,14 @@ module Make (M : Monad.S) (Store : Store.S with type 'a io = 'a M.t) = struct
           match s.status with
           | Cancelled -> ok (s, ())
           | Trialing | Active | Past_due ->
-            (* Service ends on the day retries run out; the overdue invoice stays as it
-               is (written off or still open, as the policy says). A date outside the
-               current period, possible when dunning lags behind billing, ends the
-               subscription with its current period instead. *)
+            (* Service ends on the day retries run out; the overdue invoice stays as it is
+               (written off or still open, as the policy says). A date outside the current
+               period, possible when dunning lags behind billing, ends the subscription
+               with its current period instead. *)
             (match Subscription.cancel s ~at:(`Immediately on) with
              | Ok s -> ok (s, ())
-             | Error _ -> lift (Subscription.cancel s ~at:`At_period_end) >>=? fun s -> ok (s, ())))
+             | Error _ ->
+               lift (Subscription.cancel s ~at:`At_period_end) >>=? fun s -> ok (s, ())))
         >>=? fun _ -> ok acc
       | Mark_uncollectible, _ ->
         update_invoice store invoice.id ~f:(fun current ->
@@ -626,23 +659,22 @@ module Make (M : Monad.S) (Store : Store.S with type 'a io = 'a M.t) = struct
       match actions with
       | `Retry actions -> ok (next, actions)
       | `New actions ->
-      match%bind Store.save_dunning store next with
-      | `Saved -> ok (next, actions)
-      | `Stale _ ->
-        if n >= retries
-        then fail (Stale { what = "dunning"; id = Invoice_id.to_string invoice_id })
-        else attempt (n + 1)
+        (match%bind Store.save_dunning store next with
+         | `Saved -> ok (next, actions)
+         | `Stale _ ->
+           if n >= retries
+           then fail (Stale { what = "dunning"; id = Invoice_id.to_string invoice_id })
+           else attempt (n + 1))
     in
     attempt 0
     >>=? fun (dunning, actions) ->
-    perform store config invoice actions ~on ~now
-    >>=? fun outcome -> ok (dunning, outcome)
+    perform store config invoice actions ~on ~now >>=? fun outcome -> ok (dunning, outcome)
   ;;
 
   let dunning_due store (_ : Config.t) ~today =
     let%bind open_ = Store.open_dunning store in
     List.fold open_ ~init:(return []) ~f:(fun acc dunning ->
-      let%bind acc = acc in
+      let%bind acc in
       let next, actions = Dunning.tick dunning ~today in
       match actions with
       | [] -> return acc
@@ -665,6 +697,8 @@ module Make (M : Monad.S) (Store : Store.S with type 'a io = 'a M.t) = struct
     >>=? fun (invoice, ()) ->
     of_or_error (Booking.void config.chart invoice ~at:now)
     >>=? fun entry ->
-    ok (invoice, { Outcome.empty with invoices = [ invoice ]; entries = Option.to_list entry })
+    ok
+      ( invoice
+      , { Outcome.empty with invoices = [ invoice ]; entries = Option.to_list entry } )
   ;;
 end

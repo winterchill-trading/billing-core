@@ -30,10 +30,7 @@ let of_string currency s =
     Or_error.error_s [%message "Billing_core.Unit_price: malformed price" (s : string)]
 ;;
 
-let of_amount amount =
-  create (Money.Amount.currency amount) (Money.Amount.to_q amount)
-;;
-
+let of_amount amount = create (Money.Amount.currency amount) (Money.Amount.to_q amount)
 let currency t = t.currency
 let per_unit t = t.per_unit
 let extend_exact t ~quantity = Q.mul t.per_unit (Q.of_int quantity)
@@ -58,7 +55,10 @@ let to_repr (t : t) : Repr.t =
   { currency = t.currency; per_unit = Money.Decimal_text.q_to_string t.per_unit }
 ;;
 
-let of_repr ({ currency; per_unit } : Repr.t) = of_string currency per_unit |> Or_error.ok_exn
+let of_repr ({ currency; per_unit } : Repr.t) =
+  of_string currency per_unit |> Or_error.ok_exn
+;;
+
 let sexp_of_t t = Repr.sexp_of_t (to_repr t)
 let t_of_sexp sexp = of_repr (Repr.t_of_sexp sexp)
 

@@ -42,16 +42,17 @@ let create ~code ~description ~kind ?period ?unit_price ~quantity amount =
     then error "Billing_core.Line: empty description"
     else if quantity < 0
     then error "Billing_core.Line: negative quantity"
-    else if
-      Option.exists unit_price ~f:(fun p ->
-        not (Money.Currency.equal (Unit_price.currency p) (Money.Amount.currency amount)))
+    else if Option.exists unit_price ~f:(fun p ->
+              not
+                (Money.Currency.equal
+                   (Unit_price.currency p)
+                   (Money.Amount.currency amount)))
     then error "Billing_core.Line: unit price in another currency"
-    else if
-      Money.Amount.is_negative amount
-      &&
-      match (kind : Kind.t) with
-      | Recurring | Usage -> true
-      | Proration | One_off -> false
+    else if Money.Amount.is_negative amount
+            &&
+            match (kind : Kind.t) with
+            | Recurring | Usage -> true
+            | Proration | One_off -> false
     then error "Billing_core.Line: only prorations and one-off lines may credit"
     else Ok { code; description; kind; period; quantity; unit_price; amount }
 ;;

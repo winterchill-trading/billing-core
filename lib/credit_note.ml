@@ -1,5 +1,4 @@
 open! Core
-
 module Invoice_line = Line
 
 module Reason = struct
@@ -93,7 +92,9 @@ let create ~id ~number ~issued_on ~reason (invoice : Invoice.t) credits =
         else if not (Money.Amount.is_positive amount)
         then
           invalid
-            [%message "Billing_core.Credit_note: amount must be positive" (amount : Money.Amount.t)]
+            [%message
+              "Billing_core.Credit_note: amount must be positive"
+                (amount : Money.Amount.t)]
         else if Money.Amount.( > ) amount item.line.amount
         then
           invalid
@@ -107,8 +108,8 @@ let create ~id ~number ~issued_on ~reason (invoice : Invoice.t) credits =
             , { Invoice.Item.line = item.line; rates = item.rates } )))
     |> Result.all
   in
-  (* Tax is computed exactly as the invoice computed it: the same rates and rounding
-     rules over the credited amounts. *)
+  (* Tax is computed exactly as the invoice computed it: the same rates and rounding rules
+     over the credited amounts. *)
   let%bind.Result items =
     List.map pairs ~f:(fun ((credit : Line.t), (item : Invoice.Item.t)) ->
       let%map.Or_error line = Invoice_line.with_amount item.line credit.amount in
@@ -146,7 +147,8 @@ let full ~id ~number ~issued_on ~reason (invoice : Invoice.t) =
   then
     Error
       (Refusal.Over_credit
-         { creditable = Money.Amount.sub_exn invoice.total (Invoice.amount_credited invoice)
+         { creditable =
+             Money.Amount.sub_exn invoice.total (Invoice.amount_credited invoice)
          ; requested = invoice.total
          })
   else

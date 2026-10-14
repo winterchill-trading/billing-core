@@ -30,9 +30,12 @@ let create ?(width = 6) ?(reset = Reset.Yearly) prefix =
      || not (String.for_all prefix ~f:valid_char)
   then
     Or_error.error_s
-      [%message "Billing_core.Numbering: prefix must be 1-16 of A-Z 0-9 -" (prefix : string)]
+      [%message
+        "Billing_core.Numbering: prefix must be 1-16 of A-Z 0-9 -" (prefix : string)]
   else if width < 1 || width > 12
-  then Or_error.error_s [%message "Billing_core.Numbering: width must be 1..12" (width : int)]
+  then
+    Or_error.error_s
+      [%message "Billing_core.Numbering: width must be 1..12" (width : int)]
   else Ok { prefix; width; reset }
 ;;
 
@@ -46,7 +49,8 @@ let counter t ~issued_on =
 ;;
 
 let format t ~issued_on ~seq =
-  if seq < 1 then raise_s [%message "Billing_core.Numbering.format: seq must be >= 1" (seq : int)];
+  if seq < 1
+  then raise_s [%message "Billing_core.Numbering.format: seq must be >= 1" (seq : int)];
   sprintf "%s-%0*d" (counter t ~issued_on) t.width seq
 ;;
 

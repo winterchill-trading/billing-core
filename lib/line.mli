@@ -1,6 +1,5 @@
-(** One line of an invoice: what is charged (or credited) and why. Amounts are net of
-    tax; a negative amount is a credit, such as the unused part of a plan after a
-    downgrade. *)
+(** One line of an invoice: what is charged (or credited) and why. Amounts are net of tax;
+    a negative amount is a credit, such as the unused part of a plan after a downgrade. *)
 
 open! Core
 

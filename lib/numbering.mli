@@ -2,8 +2,8 @@
 
     A number is only assigned when a document is finalised, so abandoned drafts leave no
     holes. The store keeps one counter per {!counter} key and hands out the next value
-    atomically; this module only formats. With [Yearly] reset the counter key includes
-    the year of issue, so numbering restarts at 1 every January. *)
+    atomically; this module only formats. With [Yearly] reset the counter key includes the
+    year of issue, so numbering restarts at 1 every January. *)
 
 open! Core
 

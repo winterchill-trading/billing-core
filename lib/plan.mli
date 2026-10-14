@@ -31,9 +31,9 @@ type t = private
   }
 [@@deriving sexp, compare, equal]
 
-(** Fails unless there is at least one component, every component is priced in
-    [currency], component codes are unique, [name] is not empty and [trial_days]
-    (default 0) is between 0 and 365. *)
+(** Fails unless there is at least one component, every component is priced in [currency],
+    component codes are unique, [name] is not empty and [trial_days] (default 0) is
+    between 0 and 365. *)
 val create
   :  id:Plan_id.t
   -> name:string

@@ -45,10 +45,11 @@ type t = private
   }
 [@@deriving sexp, compare, equal]
 
-(** [create ~id ~number ~issued_on ~reason invoice credits] credits [(line index, net
-    amount)] pairs. Refuses an invoice that is not [Open] or [Paid], an unknown line, an
-    amount that is not positive or exceeds the line's amount, a line credited twice in
-    one note, an empty list, and a total above what the invoice can still be credited. *)
+(** [create ~id ~number ~issued_on ~reason invoice credits] credits
+    [(line index, net amount)] pairs. Refuses an invoice that is not [Open] or [Paid], an
+    unknown line, an amount that is not positive or exceeds the line's amount, a line
+    credited twice in one note, an empty list, and a total above what the invoice can
+    still be credited. *)
 val create
   :  id:Credit_note_id.t
   -> number:string

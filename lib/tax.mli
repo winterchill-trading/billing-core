@@ -1,7 +1,7 @@
 (** The tax hook. Billing does not know tax law: the caller supplies a function that says
-    which rates apply to a line for a customer (by the customer's country, the
-    component's code, an exemption on file), and the invoice computes, rounds and totals
-    the tax. Rates are exclusive: tax is added on top of the line amounts. *)
+    which rates apply to a line for a customer (by the customer's country, the component's
+    code, an exemption on file), and the invoice computes, rounds and totals the tax.
+    Rates are exclusive: tax is added on top of the line amounts. *)
 
 open! Core
 

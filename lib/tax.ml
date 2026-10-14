@@ -20,7 +20,9 @@ module Rate = struct
     | Error err -> Error (Error.tag err ~tag:"Billing_core.Tax.Rate: bad name")
     | Ok () ->
       if bps < 0 || bps > 10_000
-      then Or_error.error_s [%message "Billing_core.Tax.Rate: bps must be 0..10000" (bps : int)]
+      then
+        Or_error.error_s
+          [%message "Billing_core.Tax.Rate: bps must be 0..10000" (bps : int)]
       else Ok { name; bps }
   ;;
 

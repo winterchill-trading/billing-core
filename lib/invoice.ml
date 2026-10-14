@@ -121,14 +121,17 @@ module Totals = struct
       List.fold
         (List.concat_map items ~f:(fun item -> item.rates))
         ~init:[]
-        ~f:(fun acc rate -> if List.mem acc rate ~equal:Tax.Rate.equal then acc else rate :: acc)
+        ~f:(fun acc rate ->
+          if List.mem acc rate ~equal:Tax.Rate.equal then acc else rate :: acc)
       |> List.rev
     in
     let taxes =
       List.map rates ~f:(fun rate ->
         let lines =
           List.filter_map items ~f:(fun item ->
-            Option.some_if (List.mem item.rates rate ~equal:Tax.Rate.equal) item.line.amount)
+            Option.some_if
+              (List.mem item.rates rate ~equal:Tax.Rate.equal)
+              item.line.amount)
         in
         let taxable = sum currency lines in
         let amount =
@@ -148,7 +151,9 @@ module Totals = struct
 end
 
 let totals ~currency ~rounding items =
-  let { Totals.subtotal; taxes; tax_total; total } = Totals.compute ~currency ~rounding items in
+  let { Totals.subtotal; taxes; tax_total; total } =
+    Totals.compute ~currency ~rounding items
+  in
   subtotal, taxes, tax_total, total
 ;;
 
@@ -236,12 +241,16 @@ let amount_due t =
 
 let overpaid t =
   let left = outstanding t in
-  if Money.Amount.is_negative left then Money.Amount.neg left else Money.Amount.zero t.currency
+  if Money.Amount.is_negative left
+  then Money.Amount.neg left
+  else Money.Amount.zero t.currency
 ;;
 
 let written_off t =
   Option.map t.written_off_after ~f:(fun n ->
-    let before = sum t.currency (List.map (List.take t.payments n) ~f:(fun p -> p.amount)) in
+    let before =
+      sum t.currency (List.map (List.take t.payments n) ~f:(fun p -> p.amount))
+    in
     Money.Amount.sub_exn (Money.Amount.sub_exn t.total before) (amount_credited t))
 ;;
 
@@ -272,7 +281,9 @@ let finalize t ~number ~issued_on ~due_on =
         (Refusal.Invalid
            (Error.create_s
               [%message
-                "Billing_core.Invoice: due before issue" (issued_on : Date.t) (due_on : Date.t)]))
+                "Billing_core.Invoice: due before issue"
+                  (issued_on : Date.t)
+                  (due_on : Date.t)]))
     else if String.is_empty (String.strip number)
     then Error (Refusal.Invalid (Error.of_string "Billing_core.Invoice: empty number"))
     else (
@@ -296,13 +307,15 @@ let check_amount t amount =
     Error
       (Refusal.Invalid
          (Error.create_s
-            [%message "Billing_core.Invoice: amount must be positive" (amount : Money.Amount.t)]))
+            [%message
+              "Billing_core.Invoice: amount must be positive" (amount : Money.Amount.t)]))
   else Ok ()
 ;;
 
 let settle_if_covered t =
   match t.status with
-  | (Open | Uncollectible) when Money.Amount.is_zero (amount_due t) -> { t with status = Paid }
+  | (Open | Uncollectible) when Money.Amount.is_zero (amount_due t) ->
+    { t with status = Paid }
   | _ -> t
 ;;
 
@@ -380,7 +393,9 @@ let mark_uncollectible t =
 ;;
 
 let validate (t : t) =
-  let%bind.Or_error () = check_currency t.currency (List.map t.items ~f:(fun i -> i.line)) in
+  let%bind.Or_error () =
+    check_currency t.currency (List.map t.items ~f:(fun i -> i.line))
+  in
   let subtotal, taxes, tax_total, total =
     totals ~currency:t.currency ~rounding:t.rounding t.items
   in
@@ -391,7 +406,8 @@ let validate (t : t) =
   then Ok t
   else
     Or_error.error_s
-      [%message "Billing_core.Invoice: totals disagree with the lines" (t.id : Invoice_id.t)]
+      [%message
+        "Billing_core.Invoice: totals disagree with the lines" (t.id : Invoice_id.t)]
 ;;
 
 let t_of_sexp sexp = Repr.t_of_sexp sexp |> validate |> Or_error.ok_exn

@@ -26,8 +26,8 @@ val quarterly : t
 (** Twelve calendar months. *)
 val yearly : t
 
-(** [period t ~anchor ~index] is the [index]th period (from 0) of a schedule that starts on
-    [anchor]. Raises if [index] is negative. *)
+(** [period t ~anchor ~index] is the [index]th period (from 0) of a schedule that starts
+    on [anchor]. Raises if [index] is negative. *)
 val period : t -> anchor:Date.t -> index:int -> Period.t
 
 (** The index of the period containing [date], or [None] when [date] is before [anchor]. *)

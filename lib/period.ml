@@ -19,7 +19,8 @@ let create ~start ~stop =
   then Ok { start; stop }
   else
     Or_error.error_s
-      [%message "Billing_core.Period: start must be before stop" (start : Date.t) (stop : Date.t)]
+      [%message
+        "Billing_core.Period: start must be before stop" (start : Date.t) (stop : Date.t)]
 ;;
 
 let create_exn ~start ~stop = create ~start ~stop |> Or_error.ok_exn

@@ -15,7 +15,8 @@ type t = Repr.t =
 let months n =
   if n >= 1 && n <= 120
   then Ok (Months n)
-  else Or_error.error_s [%message "Billing_core.Interval: months must be 1..120" (n : int)]
+  else
+    Or_error.error_s [%message "Billing_core.Interval: months must be 1..120" (n : int)]
 ;;
 
 let days n =

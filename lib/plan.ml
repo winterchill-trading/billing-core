@@ -62,13 +62,13 @@ let create ~id ~name ~currency ~interval ?(trial_days = 0) ?(features = []) comp
   then error "Billing_core.Plan: empty name"
   else if trial_days < 0 || trial_days > 365
   then error "Billing_core.Plan: trial_days must be 0..365"
-  else if
-    List.exists components ~f:(fun (c : Component.t) ->
-      not (Money.Currency.equal (Price.currency c.price) currency))
+  else if List.exists components ~f:(fun (c : Component.t) ->
+            not (Money.Currency.equal (Price.currency c.price) currency))
   then error "Billing_core.Plan: a component is priced in another currency"
-  else if
-    List.contains_dup components ~compare:(fun (a : Component.t) (b : Component.t) ->
-      String.compare a.code b.code)
+  else if List.contains_dup
+            components
+            ~compare:(fun (a : Component.t) (b : Component.t) ->
+              String.compare a.code b.code)
   then error "Billing_core.Plan: duplicate component code"
   else Ok { id; name; currency; interval; components; trial_days; features }
 ;;
@@ -87,7 +87,9 @@ let flat ~id ~name ~interval ?trial_days ?features amount =
 ;;
 
 let validate (r : Repr.t) =
-  let%bind.Or_error components = List.map r.components ~f:Component.validate |> Or_error.all in
+  let%bind.Or_error components =
+    List.map r.components ~f:Component.validate |> Or_error.all
+  in
   create
     ~id:r.id
     ~name:r.name

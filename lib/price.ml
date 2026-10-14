@@ -25,7 +25,8 @@ module Tier = struct
     else if not (Money.Currency.equal (Money.Amount.currency flat) currency)
     then
       Or_error.error_s
-        [%message "Billing_core.Price.Tier: flat part in another currency" (flat : Money.Amount.t)]
+        [%message
+          "Billing_core.Price.Tier: flat part in another currency" (flat : Money.Amount.t)]
     else if Money.Amount.is_negative flat
     then
       Or_error.error_s
@@ -92,7 +93,8 @@ let non_negative what amount =
   if Money.Amount.is_negative amount
   then
     Or_error.error_s
-      [%message "Billing_core.Price: negative amount" (what : string) (amount : Money.Amount.t)]
+      [%message
+        "Billing_core.Price: negative amount" (what : string) (amount : Money.Amount.t)]
   else Ok ()
 ;;
 
@@ -104,7 +106,9 @@ let flat amount =
 let per_seat ?(included = 0) unit_price =
   let%bind.Or_error () = non_negative "per seat" unit_price in
   if included < 0
-  then Or_error.error_s [%message "Billing_core.Price: negative included seats" (included : int)]
+  then
+    Or_error.error_s
+      [%message "Billing_core.Price: negative included seats" (included : int)]
   else Ok (Per_seat { unit_price; included })
 ;;
 
@@ -117,14 +121,17 @@ let tiered meter mode tiers =
       | [] -> Ok ()
       | (tier : Tier.t) :: rest ->
         if not (Money.Currency.equal (Unit_price.currency tier.unit_price) currency)
-        then Or_error.error_s [%message "Billing_core.Price: tiers in different currencies"]
+        then
+          Or_error.error_s [%message "Billing_core.Price: tiers in different currencies"]
         else (
           match tier.up_to, rest with
           | None, [] -> Ok ()
           | None, _ :: _ ->
-            Or_error.error_s [%message "Billing_core.Price: only the last tier is open-ended"]
+            Or_error.error_s
+              [%message "Billing_core.Price: only the last tier is open-ended"]
           | Some _, [] ->
-            Or_error.error_s [%message "Billing_core.Price: the last tier must be open-ended"]
+            Or_error.error_s
+              [%message "Billing_core.Price: the last tier must be open-ended"]
           | Some up_to, _ :: _ ->
             if up_to <= previous
             then
@@ -136,7 +143,9 @@ let tiered meter mode tiers =
     Tiered { meter; mode; tiers }
 ;;
 
-let percentage ?(basis = Fee_basis.Per_period) meter fee = Percentage { meter; fee; basis }
+let percentage ?(basis = Fee_basis.Per_period) meter fee =
+  Percentage { meter; fee; basis }
+;;
 
 let validate : Repr.t -> t Or_error.t = function
   | Flat amount -> flat amount
@@ -178,10 +187,14 @@ let recurring t ~seats =
 
 let tiered_amount mode (tiers : Tier.t list) ~quantity ~rounding =
   if quantity < 0
-  then raise_s [%message "Billing_core.Price.tiered_amount: negative quantity" (quantity : int)];
+  then
+    raise_s
+      [%message "Billing_core.Price.tiered_amount: negative quantity" (quantity : int)];
   let currency = Unit_price.currency (List.hd_exn tiers).unit_price in
   let tier_q (tier : Tier.t) ~units =
-    Q.add (Unit_price.extend_exact tier.unit_price ~quantity:units) (Money.Amount.to_q tier.flat)
+    Q.add
+      (Unit_price.extend_exact tier.unit_price ~quantity:units)
+      (Money.Amount.to_q tier.flat)
   in
   let exact =
     if quantity = 0

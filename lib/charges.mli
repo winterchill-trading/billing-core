@@ -8,8 +8,8 @@ open! Core
     exact, so nothing rounds. *)
 val in_advance : Plan.t -> seats:int -> period:Period.t -> Line.t list
 
-(** One [Usage] line per usage component with at least one record of its meter dated
-    (in [zone]) inside [period]. Fails if a volume record is in another currency. *)
+(** One [Usage] line per usage component with at least one record of its meter dated (in
+    [zone]) inside [period]. Fails if a volume record is in another currency. *)
 val in_arrears
   :  Plan.t
   -> Usage.Record.t list

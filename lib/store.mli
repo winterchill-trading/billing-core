@@ -7,8 +7,8 @@
     - [insert_*] creates a record under its id once; a second insert returns what is
       stored ([`Exists]), whatever its content.
     - [save_*] replaces a record only when the stored revision is exactly one below the
-      new one (or, for a new dunning process, when none is stored and the revision is
-      0); otherwise it returns the stored record ([`Stale]) and the caller reloads.
+      new one (or, for a new dunning process, when none is stored and the revision is 0);
+      otherwise it returns the stored record ([`Stale]) and the caller reloads.
     - {!S.number} hands out document numbers per counter, gapless and idempotent per
       document: asking twice for the same document returns the same number. *)
 
@@ -72,7 +72,7 @@ module type S = sig
 
   (** {2 Numbering} *)
 
-  (** [number t ~counter ~document] is the number [document] holds under [counter], or
-      the next one (1, 2, ...) if it has none yet. Must be atomic per counter. *)
+  (** [number t ~counter ~document] is the number [document] holds under [counter], or the
+      next one (1, 2, ...) if it has none yet. Must be atomic per counter. *)
   val number : t -> counter:string -> document:string -> int io
 end

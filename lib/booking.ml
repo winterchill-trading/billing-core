@@ -11,7 +11,8 @@ module Chart = struct
   let default =
     { receivable =
         (fun customer ->
-          Ledger.Account_id.of_string ("receivable:billing/" ^ Customer_id.to_string customer))
+          Ledger.Account_id.of_string
+            ("receivable:billing/" ^ Customer_id.to_string customer))
     ; income = (fun _ -> Ledger.Account_id.of_string "income:billing")
     ; tax_payable =
         (fun rate -> Ledger.Account_id.of_string ("liability:tax/" ^ rate.Tax.Rate.name))
@@ -36,8 +37,8 @@ end
 let key fmt = Printf.ksprintf Ledger.Idempotency_key.of_string_or_error fmt
 let issue_key id = key "billing:invoice:%s:issue" (Invoice_id.to_string id)
 
-(* Postings from signed amounts: positive means credit. Amounts on one account are
-   netted first, and zero nets post nothing. *)
+(* Postings from signed amounts: positive means credit. Amounts on one account are netted
+   first, and zero nets post nothing. *)
 let postings (signed : (Ledger.Account_id.t * Money.Amount.t) list) =
   List.fold signed ~init:Ledger.Account_id.Map.empty ~f:(fun acc (account, amount) ->
     Map.update acc account ~f:(function
@@ -71,7 +72,8 @@ let issue_postings (chart : Chart.t) (invoice : Invoice.t) =
   postings
     (List.concat
        [ [ chart.receivable invoice.customer, Money.Amount.neg invoice.total ]
-       ; List.map invoice.items ~f:(fun item -> chart.income item.line.code, item.line.amount)
+       ; List.map invoice.items ~f:(fun item ->
+           chart.income item.line.code, item.line.amount)
        ; List.map invoice.taxes ~f:(fun tax -> chart.tax_payable tax.rate, tax.amount)
        ])
 ;;
@@ -113,7 +115,8 @@ let payment (chart : Chart.t) (invoice : Invoice.t) payment_id ~from =
   with
   | None ->
     Or_error.error_s
-      [%message "Billing_core.Booking.payment: no such payment" (payment_id : Payment_id.t)]
+      [%message
+        "Billing_core.Booking.payment: no such payment" (payment_id : Payment_id.t)]
   | Some payment ->
     Or_error.try_with_join (fun () ->
       let%bind.Or_error key =
@@ -138,12 +141,20 @@ let payment (chart : Chart.t) (invoice : Invoice.t) payment_id ~from =
         ])
 ;;
 
-let credit_note (chart : Chart.t) (invoice : Invoice.t) (note : Credit_note.t) ~refund_to ~at =
+let credit_note
+  (chart : Chart.t)
+  (invoice : Invoice.t)
+  (note : Credit_note.t)
+  ~refund_to
+  ~at
+  =
   if Money.Amount.is_zero note.total
   then Ok None
   else
     Or_error.try_with_join (fun () ->
-      let%bind.Or_error key = key "billing:credit-note:%s" (Credit_note_id.to_string note.id) in
+      let%bind.Or_error key =
+        key "billing:credit-note:%s" (Credit_note_id.to_string note.id)
+      in
       let items = Array.of_list invoice.items in
       let%bind.Or_error lines =
         List.map note.lines ~f:(fun line ->
@@ -167,7 +178,9 @@ let credit_note (chart : Chart.t) (invoice : Invoice.t) (note : Credit_note.t) ~
               [ lines
               ; List.map note.taxes ~f:(fun tax ->
                   chart.tax_payable tax.rate, Money.Amount.neg tax.amount)
-              ; [ chart.receivable note.customer, note.against_due; refund_to, note.refund ]
+              ; [ chart.receivable note.customer, note.against_due
+                ; refund_to, note.refund
+                ]
               ]))
       |> Or_error.map ~f:Option.some)
 ;;
@@ -202,7 +215,9 @@ let void (chart : Chart.t) (invoice : Invoice.t) ~at =
   | Void when Option.is_some invoice.number && not (Money.Amount.is_zero invoice.total) ->
     Or_error.try_with_join (fun () ->
       let%bind.Or_error reverses = issue_key invoice.id in
-      let%bind.Or_error key = key "billing:invoice:%s:void" (Invoice_id.to_string invoice.id) in
+      let%bind.Or_error key =
+        key "billing:invoice:%s:void" (Invoice_id.to_string invoice.id)
+      in
       Ledger.Entry.create
         ~idempotency_key:key
         ~kind:(Reversal { reverses })

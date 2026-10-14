@@ -17,7 +17,10 @@ module Policy = struct
   ;;
 
   let default =
-    { retry_after_days = [ 3; 5; 7 ]; cancel_subscription = true; mark_uncollectible = true }
+    { retry_after_days = [ 3; 5; 7 ]
+    ; cancel_subscription = true
+    ; mark_uncollectible = true
+    }
   ;;
 end
 

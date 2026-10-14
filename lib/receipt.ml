@@ -47,7 +47,9 @@ let of_payment (invoice : Invoice.t) payment_id =
        List.findi invoice.payments ~f:(fun _ (p : Invoice.Payment.t) ->
          Payment_id.equal p.id payment_id)
      with
-     | None -> Error (Refusal.Not_found { what = "payment"; id = Payment_id.to_string payment_id })
+     | None ->
+       Error
+         (Refusal.Not_found { what = "payment"; id = Payment_id.to_string payment_id })
      | Some (index, payment) ->
        let sum amounts = Money.Amount.sum invoice.currency amounts |> Or_error.ok_exn in
        let paid_to_date =
@@ -60,7 +62,9 @@ let of_payment (invoice : Invoice.t) payment_id =
          Money.Amount.sub_exn (Money.Amount.sub_exn invoice.total paid_to_date) credited
        in
        let balance =
-         if Money.Amount.is_negative balance then Money.Amount.zero invoice.currency else balance
+         if Money.Amount.is_negative balance
+         then Money.Amount.zero invoice.currency
+         else balance
        in
        Ok
          { invoice = invoice.id
@@ -74,7 +78,8 @@ let of_payment (invoice : Invoice.t) payment_id =
          ; credited
          ; balance
          ; lines =
-             List.map invoice.items ~f:(fun item -> item.line.description, item.line.amount)
+             List.map invoice.items ~f:(fun item ->
+               item.line.description, item.line.amount)
          ; taxes =
              List.map invoice.taxes ~f:(fun (tax : Invoice.Tax_line.t) ->
                tax.rate.name, tax.amount)
@@ -86,11 +91,14 @@ let to_text t =
   List.concat
     [ [ sprintf "Receipt for invoice %s" t.invoice_number
       ; sprintf "Payment %s" (Payment_id.to_string t.payment)
-      ; sprintf "Paid at %s UTC" (Time_ns.to_sec_string t.paid_at ~zone:Time_float.Zone.utc)
+      ; sprintf
+          "Paid at %s UTC"
+          (Time_ns.to_sec_string t.paid_at ~zone:Time_float.Zone.utc)
       ]
     ; List.map t.lines ~f:(fun (description, amount) ->
         sprintf "  %s: %s" description (money amount))
-    ; List.map t.taxes ~f:(fun (name, amount) -> sprintf "  tax %s: %s" name (money amount))
+    ; List.map t.taxes ~f:(fun (name, amount) ->
+        sprintf "  tax %s: %s" name (money amount))
     ; [ sprintf "Invoice total: %s" (money t.invoice_total)
       ; sprintf "This payment: %s" (money t.amount)
       ; sprintf "Paid to date: %s" (money t.paid_to_date)

@@ -32,8 +32,8 @@ module Make (M : Monad.S) = struct
       M.return `Inserted
   ;;
 
-  (* Compare-and-set on the revision: the stored record must be the one the new
-     revision was derived from. *)
+  (* Compare-and-set on the revision: the stored record must be the one the new revision
+     was derived from. *)
   let save table key value ~revision ~stored_revision =
     match Hashtbl.find table key with
     | Some existing when stored_revision existing = revision value - 1 ->
@@ -99,7 +99,8 @@ module Make (M : Monad.S) = struct
   let invoices_of_customer t customer =
     Hashtbl.data t.invoices
     |> List.filter ~f:(fun (i : Invoice.t) -> Customer_id.equal i.customer customer)
-    |> List.sort ~compare:(fun (a : Invoice.t) (b : Invoice.t) -> Invoice_id.compare a.id b.id)
+    |> List.sort ~compare:(fun (a : Invoice.t) (b : Invoice.t) ->
+      Invoice_id.compare a.id b.id)
     |> M.return
   ;;
 
