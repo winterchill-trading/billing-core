@@ -28,3 +28,5 @@ module Proration = Proration
 module Subscription = Subscription
 module Dunning = Dunning
 module Booking = Booking
+module Store = Store
+module Store_memory = Store_memory
