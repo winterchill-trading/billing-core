@@ -23,3 +23,4 @@ module Receipt = Receipt
 module Usage = Usage
 module Charges = Charges
 module Proration = Proration
+module Subscription = Subscription
