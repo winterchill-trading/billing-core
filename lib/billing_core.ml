@@ -6,3 +6,4 @@ module Payment_id = Payment_id
 module Plan_id = Plan_id
 module Subscription_id = Subscription_id
 module Usage_id = Usage_id
+module Period = Period
