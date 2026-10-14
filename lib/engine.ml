@@ -51,9 +51,13 @@ end
 
 (* Readable when it fits the id length, a digest otherwise. Either way it depends only on
    the subscription and the boundary, so every runner derives the same id. *)
-let derived_invoice_id subscription boundary =
+let derived_invoice_id ?(suffix = "") subscription boundary =
   let readable =
-    sprintf "%s@%s" (Subscription_id.to_string subscription) (Date.to_string boundary)
+    sprintf
+      "%s@%s%s"
+      (Subscription_id.to_string subscription)
+      (Date.to_string boundary)
+      suffix
   in
   match Invoice_id.of_string_or_error readable with
   | Ok id -> id
@@ -159,6 +163,7 @@ module Make (M : Monad.S) (Store : Store.S with type 'a io = 'a M.t) = struct
 
   (* Finds or creates the draft for one boundary of a subscription, then issues it. *)
   let raise_invoice
+    ?suffix
     store
     (config : Config.t)
     (sub : Subscription.t)
@@ -167,7 +172,7 @@ module Make (M : Monad.S) (Store : Store.S with type 'a io = 'a M.t) = struct
     ~now
     (lines : Line.t list)
     =
-    let id = derived_invoice_id sub.id boundary in
+    let id = derived_invoice_id ?suffix sub.id boundary in
     (match%bind Store.find_invoice store id with
      | Some existing -> ok existing
      | None ->
@@ -321,13 +326,17 @@ module Make (M : Monad.S) (Store : Store.S with type 'a io = 'a M.t) = struct
         | Trialing | Active | Past_due -> Subscription.billed_through sub
       in
       let date = Usage.Record.date record ~zone:config.zone in
-      let closed =
+      let before_billed =
+        match Subscription.billed_through sub with
+        | Some billed_through -> Date.( < ) date billed_through
+        | None -> false
+      in
+      let after_end =
         match sub.status, limit with
         | Cancelled, Some ended_on -> Date.( >= ) date ended_on
-        | (Trialing | Active | Past_due), Some billed_through ->
-          Date.( < ) date billed_through
-        | _, None -> false
+        | _ -> false
       in
+      let closed = before_billed || after_end in
       if closed
       then
         fail
@@ -494,7 +503,18 @@ module Make (M : Monad.S) (Store : Store.S with type 'a io = 'a M.t) = struct
       let lines = usage_lines @ before.pending_lines in
       (if List.is_empty lines
        then ok Outcome.empty
-       else raise_invoice store config before ~boundary:on ~period ~now lines)
+       else
+         (* Its own suffix: cancelling on the first day of a period would otherwise derive
+            the id of the invoice that opened the period. *)
+         raise_invoice
+           ~suffix:"/final"
+           store
+           config
+           before
+           ~boundary:on
+           ~period
+           ~now
+           lines)
       >>=? fun final ->
       (* The unused share of the advance billed for this period, as a credit note on the
          invoice that billed it. *)

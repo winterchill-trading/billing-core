@@ -317,7 +317,7 @@ let%expect_test "a payment ends dunning; a credit note and an immediate cancella
     INV-2026-000001 paid 2026-01-15..2026-02-14 total 60.00 EUR due 0.00 EUR
       starter plan                              1  50.00 EUR
     credit note CN-2026-000001 total 29.03 EUR against due 0.00 EUR refund 29.03 EUR
-      entry billing:invoice:sub-acme@2026-01-31:issue
+      entry billing:invoice:sub-acme@2026-01-31/final:issue
       entry billing:credit-note:sub-acme@2026-01-15/cancel
     (Cancelled (2026-01-31))
     (Error PERIOD_CLOSED)
